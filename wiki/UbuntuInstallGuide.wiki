@@ -1,3 +1,4 @@
+#summary Detailed install guide for ubuntu/debian distributions
 
 *1. Initial Setup*
 
