@@ -1,6 +1,6 @@
 #summary Dependencies required for installing thrudb
 
-= GettingStarted =
+==GettingStarted==
 
   1. install thrift dependencies
     * GNU build tools (Autoconf 2.59c+)
@@ -31,7 +31,7 @@
     * for thrudex
       * CLucene (requires 0.9.18 or higher)
   1. checkout and build thrudb
-    1. svn co http://svn.thrudb.org/thrudb/trunk thrudb
+    1. svn co http://thrudb.googlecode.com/svn/trunk/ thrudb
     1. cd thrudb
     1. to build everything
       1. make
