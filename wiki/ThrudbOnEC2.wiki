@@ -1,4 +1,5 @@
 #summary Running Thrudb On Amazon EC2
+#labels Featured
 
 *1. AMI information*
 
