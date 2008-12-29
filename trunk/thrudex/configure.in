@@ -15,10 +15,6 @@ AC_PROG_MAKE_SET
 
 AC_LANG(C++)
 
-# thrucommon
-PKG_CHECK_MODULES(THRUCOMMON, [thrucommon],
-                  AC_DEFINE([HAVE_THRUCOMMON], [1], [Define to 1 if you have the thrucommon library (-lthrucommon)]))
-
 # work around for CLucene weirdness on debian systems
 CXXFLAGS="-I/usr/lib $CXXFLAGS"
 

@@ -118,6 +118,13 @@ AC_TYPE_UINT16_T
 AC_TYPE_UINT32_T
 AC_TYPE_UINT8_T
 
+AC_CHECK_FUNCS([pow strerror strndup])
+AC_CHECK_HEADERS([sys/time.h])
+AC_FUNC_MBRTOWC
+AC_FUNC_STAT
+
+AC_PROG_RANLIB
+
 AC_CONFIG_FILES([Makefile
                  src/Makefile
                  src/thrucommon.pc

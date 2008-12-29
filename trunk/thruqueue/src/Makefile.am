@@ -10,8 +10,12 @@ thruqueue_SOURCES = \
 		  ThruqueueHandler.cpp			\
 		  main.cpp
 
-thruqueue_CPPFLAGS = -Wall -Igen-cpp $(THRIFTNB_CFLAGS) $(THRUCOMMON_CFLAGS) $(SSL_CFLAGS) $(UUID_CFLAGS)
-thruqueue_LDFLAGS = -Wall $(THRIFTNB_LIBS) $(THRUCOMMON_LIBS) $(SSL_LIBS) $(UUID_LIBS)
+LDADD = ../../thrucommon/src/libthrucommon.la
+
+thruqueue_CPPFLAGS = -Wall -Igen-cpp $(THRIFTNB_CFLAGS) -I../../thrucommon/src -I../../thrucommon/src/gen-cpp $(SSL_CFLAGS) $(UUID_CFLAGS)
+thruqueue_LDFLAGS = -Wall $(THRIFTNB_LIBS) $(SSL_LIBS) $(UUID_LIBS)
+thruqueue_LDADD = $(LDADD)
+thruqueue_DEPENDENCIES = $(LDADD)
 
 gen-cpp/Thruqueue.cpp: Thruqueue.thrift
 	${THRIFT} -cpp $<
