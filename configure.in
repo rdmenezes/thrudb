@@ -1,0 +1,23 @@
+AC_PREREQ(2.59)
+AC_INIT(thrudb,0.1,[bugs@thrudb.org])
+
+AM_INIT_AUTOMAKE
+AM_CONFIG_HEADER(thrudb_config.h)
+
+
+test "x$prefix" = xNONE && prefix=$ac_default_prefix
+test "x$exec_prefix" = xNONE && exec_prefix='${prefix}'
+
+eval "exec_prefix=$exec_prefix"
+eval "bindir=$bindir"
+eval "sysconfdir=$sysconfdir"
+eval "datadir=$datadir"
+
+dnl Checks for programs.
+AC_PROG_AWK
+AC_PROG_INSTALL
+AM_PROG_LIBTOOL
+AC_PROG_RANLIB
+
+AC_CONFIG_SUBDIRS(thrucommon thrudoc thrudex thruqueue throxy)
+AC_OUTPUT(Makefile)
