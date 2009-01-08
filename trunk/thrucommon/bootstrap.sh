@@ -2,9 +2,9 @@
 
 #for macports
 if test -d /opt/local/share/aclocal; then
-  aclocal -I /opt/local/share/aclocal || exit 1
+  aclocal -I /opt/local/share/aclocal  -I ./config/ac-macros || exit 1
 else
-  aclocal || exit 1
+  aclocal -I ./config/ac-macros || exit 1
 fi
 
 autoscan || exit 1
