@@ -28,12 +28,16 @@ fi
 
 AC_LANG(C++)
 
+
 # thrift(nb) and related requirements
 AC_PATH_PROG(THRIFT, thrift, thrift, $PATH:/usr/local/bin:/usr/bin)
 PKG_CHECK_MODULES(THRIFT, [thrift],
                   AC_DEFINE([HAVE_THRIFT], [1], [Define to 1 if you have the thrift library (-lthrift)]))
-AC_CHECK_LIB(event, [open], [],
-             AC_MSG_ERROR([You must install libevent; please install libraries and development files before building thrift]))
+
+AX_LIB_EVENT([1.1])
+if test "x$ax_have_libevent" != "xyes"; then
+AC_MSG_ERROR([libevent is required; please install development libraries])   
+fi
 
 # memcached
 AC_ARG_WITH(memcached,
@@ -82,12 +86,12 @@ if test "$with_disk" != "no" -o "$with_s3" != "no"; then
     AC_CHECK_HEADERS([openssl/hmac.h])
 fi
 
+
 # boost filesystem
+AX_BOOST_BASE([1.33.1])
+
 if test "$with_disk" != "no" -o "$with_bdb" != "no"; then
-    AC_CHECK_LIB(boost_filesystem, [open], [],
-                 AC_MSG_ERROR([You must install boost_filesystem; please install libraries and development files]))
-    AC_CHECK_HEADERS([boost/filesystem/path.hpp],,
-                     AC_MSG_ERROR([boost/filesystem/path.hpp missing; please add db_cxx development files]))
+AX_BOOST_FILESYSTEM
 fi
 
 # log4cxx
