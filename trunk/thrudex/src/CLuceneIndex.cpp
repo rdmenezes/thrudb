@@ -426,7 +426,6 @@ void CLuceneIndex::search(const thrudex::SearchQuery &q, thrudex::SearchResponse
                     continue;
                 } else {
 
-
                     STRCPY_TtoA(buf,id,1024);
 
                     LOG4CXX_DEBUG(logger,"ID: "+string(buf));
@@ -434,6 +433,14 @@ void CLuceneIndex::search(const thrudex::SearchQuery &q, thrudex::SearchResponse
                     thrudex::Element el;
                     el.index = q.index;
                     el.key   = buf;
+		    
+		    if(q.payload){
+		      const wchar_t *payload = doc->get(DOC_PAYLOAD);
+		      if(payload != NULL){
+			STRCPY_TtoA(buf,payload,1024);
+			el.payload = buf;
+		      }
+		    }
 
                     r.elements.push_back(el);
 
@@ -460,6 +467,14 @@ void CLuceneIndex::search(const thrudex::SearchQuery &q, thrudex::SearchResponse
                     thrudex::Element el;
                     el.index = q.index;
                     el.key   = buf;
+
+		    if(q.payload){
+		      const wchar_t *payload = doc->get(DOC_PAYLOAD);
+		      if(payload != NULL){
+			STRCPY_TtoA(buf,payload,1024);
+			el.payload = string(buf);
+		      }
+		    }
 
                     r.elements.push_back(el);
                 }

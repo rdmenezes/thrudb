@@ -1,8 +1,8 @@
 namespace cpp thrudex
 namespace java thrudex
-php_namespace Thrudex
-ruby_namespace Thrudex
-perl_package  Thrudex
+namespace php Thrudex
+namespace rb Thrudex
+namespace perl Thrudex
 
 
 
@@ -32,13 +32,15 @@ struct Document
         1: string      index
         2: string      key,
         3: list<Field> fields,
-        4: i32         weight = 1
+	4: string      payload,
+        5: i32         weight = 1
 }
 
 struct Element
 {
         1:string index,
-        2:string key
+        2:string key,
+	3:string payload
 }
 
 struct SearchQuery
@@ -52,7 +54,8 @@ struct SearchQuery
         5: i32     offset    = 0,
 
         6: bool    desc      = 0,
-        7: bool    randomize = 0
+        7: bool    randomize = 0,
+	8: bool    payload   = 0
 }
 
 struct SearchResponse
