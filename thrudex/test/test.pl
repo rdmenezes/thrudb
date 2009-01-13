@@ -12,12 +12,12 @@ use Thrift::FramedTransport;
 
 use Data::Dumper;
 
-use Thrudex;
+use Thrudex::Thrudex;
 
 my $socket    = new Thrift::Socket('localhost',9099);
 my $transport = new Thrift::FramedTransport($socket);
 my $protocol  = new Thrift::BinaryProtocol($transport);
-my $client    = new ThrudexClient($protocol);
+my $client    = new Thrudex::ThrudexClient($protocol);
 
 my $index  = "jddev";
 
@@ -67,7 +67,7 @@ sub add_some_data
 
         $d->index(  $index );
         $d->key( $i );
-
+	$d->payload("test");
         foreach my $j (1..10){
 
             my $field = new Thrudex::Field();
@@ -94,6 +94,7 @@ sub update_it
         $d->index( $index);
 
         $d->key( $i );
+	$d->payload("updated");
 
         foreach my $j (1..10){
 
@@ -116,9 +117,10 @@ sub query_it
 {
     my $q = new Thrudex::SearchQuery();
 
-    $q->{index}  = $index;
-    $q->{query}  = qq{+name1:(value)};
+    $q->index($index);
+    $q->query( qq{+name1:(value)} );
     #$q->{limit}  = 10;
+    $q->payload(1);
     my $r = $client->search( $q );
 
     warn(Dumper($r));

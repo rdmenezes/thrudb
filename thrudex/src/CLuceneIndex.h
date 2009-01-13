@@ -27,6 +27,7 @@ class bloom_filter;
 class UpdateFilter;
 
 #define DOC_KEY L"_doc_key_"
+#define DOC_PAYLOAD L"_payload_"
 
 /***
  *Manages index reads and writes for optimal performance.

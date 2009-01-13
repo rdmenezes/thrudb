@@ -117,13 +117,19 @@ void CLuceneBackend::put(const thrudex::Document &d)
             throw ex;
         }
 
-
         lucene::document::Field *f;
 
+	//add the document key
         f = lucene::document::Field::Keyword( DOC_KEY, doc_key.c_str() );
-
         doc->add(*f);
 
+	//check for payload
+	if( !d.payload.empty() ){
+	  f = lucene::document::Field::UnIndexed( DOC_PAYLOAD, build_wstring(d.payload).c_str() );
+	  doc->add(*f);
+	}
+
+	//populate the document
         for( unsigned int j=0; j<d.fields.size(); j++){
 
             LOG4CXX_DEBUG(logger, d.fields[j].key+":"+d.fields[j].value);
