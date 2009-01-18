@@ -6,6 +6,6 @@ includedir=@includedir@
 Name: Thrudoc
 Description: Thrudoc C++ library
 Version: @VERSION@
-Requires: thrift
+Requires: thrift thrucommon
 Libs: -L${libdir} -lthrudoc
 Cflags: -I${includedir}/thrudoc
