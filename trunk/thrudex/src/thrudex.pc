@@ -6,6 +6,6 @@ includedir=${prefix}/include
 Name: Thrudex
 Description: Thrudex C++ library
 Version: 0.1
-Requires: thrift
+Requires: thrift thrucommon
 Libs: -L${libdir} -lthrudex
 Cflags: -I${includedir}/thrudex
