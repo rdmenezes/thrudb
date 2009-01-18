@@ -1,11 +1,11 @@
-prefix=/usr/local
-exec_prefix=${prefix}
-libdir=${exec_prefix}/lib
-includedir=${prefix}/include
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
 
-Name: Thrudex
+Name: Thrudoc
 Description: Thrudex C++ library
-Version: 0.1
+Version: @VERSION@
 Requires: thrift thrucommon
 Libs: -L${libdir} -lthrudex
 Cflags: -I${includedir}/thrudex
