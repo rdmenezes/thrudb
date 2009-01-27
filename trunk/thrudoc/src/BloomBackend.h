@@ -10,12 +10,11 @@
 #define _THRUDOC_BLOOM_BACKEND_H_
 
 #include <string>
-#include <log4cxx/logger.h>
 #include <boost/shared_ptr.hpp>
 
-#include <thrift/transport/TTransportUtils.h>
-#include <thrift/protocol/TBinaryProtocol.h>
-#include <thrift/concurrency/Mutex.h>
+#include <transport/TTransportUtils.h>
+#include <protocol/TBinaryProtocol.h>
+#include <concurrency/Mutex.h>
 
 #include "ThrudocPassthruBackend.h"
 
@@ -42,8 +41,6 @@ class BloomBackend : public ThrudocPassthruBackend
               const std::string & value);
 
  protected:
-    static log4cxx::LoggerPtr logger;
-
     bloom_filter *hit_filter;  ///<ids that were found in the store
     bloom_filter *miss_filter; ///<ids that were not found in the store
     bloom_filter *miss_filter2;///<misses are double filtered for extra protection...

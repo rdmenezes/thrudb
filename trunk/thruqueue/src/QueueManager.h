@@ -12,11 +12,10 @@
 
 #include <string>
 #include <boost/shared_ptr.hpp>
-#include <thrift/concurrency/Thread.h>
-#include <thrift/concurrency/Mutex.h>
-#include <thrift/concurrency/Monitor.h>
-#include <thrift/concurrency/PosixThreadFactory.h>
-#include <log4cxx/logger.h>
+#include <concurrency/Thread.h>
+#include <concurrency/Mutex.h>
+#include <concurrency/Monitor.h>
+#include <concurrency/PosixThreadFactory.h>
 
 #include "Queue.h"
 
@@ -43,7 +42,6 @@ class _QueueManager : public facebook::thrift::concurrency::Runnable
     std::map<std::string, boost::shared_ptr<Queue> > queue_cache;
 
     bool   started;
-    static log4cxx::LoggerPtr logger;
     static _QueueManager* pInstance;
     static facebook::thrift::concurrency::Mutex _mutex;
 };

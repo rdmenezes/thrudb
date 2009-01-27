@@ -1,29 +1,27 @@
 #ifdef HAVE_CONFIG_H
 #include "thrudoc_config.h"
 #endif
-/* hack to work around thrift and log4cxx installing config.h's */
-#undef HAVE_CONFIG_H 
+/* hack to work around thrift installing config.h's */
+#undef HAVE_CONFIG_H
 
 #include "NBackend.h"
+#include "ThruLogging.h"
 
 using namespace boost;
 using namespace thrudoc;
-using namespace log4cxx;
-using namespace std;
 
-// private
-LoggerPtr NBackend::logger (Logger::getLogger ("NBackend"));
+using namespace std;
 
 NBackend::NBackend (vector<shared_ptr<ThrudocBackend> > backends)
 {
-    char buf[32];
-    sprintf (buf, "NBackend: backends.size=%d\n", (int)backends.size ());
-    LOG4CXX_INFO (logger, buf);
+
+    T_DEBUG("NBackend: backends.size=%d\n", (int)backends.size ());
+
     this->set_backend (backends[0]);
     this->backends = backends;
 }
 
-void NBackend::put (const string & bucket, const string & key, 
+void NBackend::put (const string & bucket, const string & key,
                     const string & value)
 {
     vector<shared_ptr<ThrudocBackend> >::iterator i;
@@ -53,7 +51,7 @@ string NBackend::admin (const string & op, const string & data)
     return ret;
 }
 
-void NBackend::validate (const string & bucket, const string * key, 
+void NBackend::validate (const string & bucket, const string * key,
                          const string * value)
 {
     vector<shared_ptr<ThrudocBackend> >::iterator i;

@@ -16,7 +16,6 @@
 #include <concurrency/ThreadManager.h>
 #include <concurrency/PosixThreadFactory.h>
 #include <protocol/TBinaryProtocol.h>
-//#include <protocol/TCountingProtocol.h>
 #include <server/TSimpleServer.h>
 #include <server/TThreadPoolServer.h>
 #include <server/TNonblockingServer.h>
@@ -31,15 +30,11 @@
 #include "boost/shared_ptr.hpp"
 #include "boost/utility.hpp"
 
-#include "log4cxx/logger.h"
-#include "log4cxx/basicconfigurator.h"
-#include "log4cxx/propertyconfigurator.h"
-#include "log4cxx/helpers/exception.h"
-
 #include "app_helpers.h"
 #include "ConfigFile.h"
 #include "ThrudocBackend.h"
 #include "ThrudocHandler.h"
+#include "ThruLogging.h"
 
 using namespace boost;
 using namespace thrudoc;
@@ -48,11 +43,8 @@ using namespace facebook::thrift::concurrency;
 using namespace facebook::thrift::protocol;
 using namespace facebook::thrift::server;
 using namespace facebook::thrift::transport;
-using namespace log4cxx;
-using namespace log4cxx::helpers;
-using namespace std;
 
-LoggerPtr logger (Logger::getLogger ("Thrudoc"));
+using namespace std;
 
 //print usage and die
 inline void usage ()
@@ -83,10 +75,7 @@ int main (int argc, char **argv)
     ConfigManager->readFile ( conf_file );
 
     try{
-        //Init logger
-        PropertyConfigurator::configure (conf_file);
-
-        LOG4CXX_INFO (logger, "Starting up");
+        T_INFO ("Starting up");
 
         int    thread_count = ConfigManager->read<int>("THREAD_COUNT",3);
         int    server_port  = ConfigManager->read<int>("SERVER_PORT",9091);
@@ -99,7 +88,7 @@ int main (int argc, char **argv)
 
         string which = ConfigManager->read<string> ("BACKEND", "mysql");
 
-        shared_ptr<ThrudocBackend> backend = create_backend (which, 
+        shared_ptr<ThrudocBackend> backend = create_backend (which,
                                                              thread_count);
         shared_ptr<ThrudocHandler>   handler (new ThrudocHandler (backend));
         shared_ptr<ThrudocProcessor> processor (new ThrudocProcessor (handler));
@@ -172,7 +161,7 @@ int main (int argc, char **argv)
     catch (...)
     {
         cerr<<"Caught unknown exception"<<endl;
-        }
+    }
 
     return 0;
 }

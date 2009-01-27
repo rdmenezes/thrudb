@@ -11,31 +11,29 @@
 #include "thruqueue_config.h"
 #endif
 /* hack to work around thrift and log4cxx installing config.h's */
-#undef HAVE_CONFIG_H 
+#undef HAVE_CONFIG_H
 
 #include "Queue.h"
 #include "ConfigFile.h"
 #include "utils.h"
 #include "QueueLog.h"
+#include "ThruLogging.h"
 
 #include <stdexcept>
 
-#include <thrift/concurrency/ThreadManager.h>
-#include <thrift/concurrency/Mutex.h>
-#include <thrift/concurrency/PosixThreadFactory.h>
-#include <thrift/protocol/TBinaryProtocol.h>
-#include <thrift/transport/TTransportUtils.h>
+#include <concurrency/ThreadManager.h>
+#include <concurrency/Mutex.h>
+#include <concurrency/PosixThreadFactory.h>
+#include <protocol/TBinaryProtocol.h>
+#include <transport/TTransportUtils.h>
 
 using namespace std;
 using namespace boost;
 using namespace facebook::thrift;
-using namespace log4cxx;
 using namespace facebook::thrift::concurrency;
 using namespace facebook::thrift::transport;
 using namespace facebook::thrift::protocol;
 using namespace thruqueue;
-
-LoggerPtr   Queue::logger(Logger::getLogger("Queue"));
 
 
 class PruneCollector : virtual public QueueLogIf
@@ -158,13 +156,13 @@ Queue::Queue(const string name, bool unique)
 
 void Queue::pruneLogFile()
 {
-    LOG4CXX_DEBUG(logger,"Entering pruneLogFile("+queue_name+")");
+    T_DEBUG("Entering pruneLogFile(%s)",queue_name.c_str());
 
     //First check that log file exists
     //If it does not then just create it and leave
     if( !file_exists( queue_log_file ) ){
 
-        LOG4CXX_DEBUG(logger,"No Log exists for this queue creating one");
+        T_DEBUG("No Log exists for this queue creating one");
 
         queue_log                    = shared_ptr<TFileTransport>(new TFileTransport(queue_log_file) );
         queue_log->setFlushMaxUs(100);
@@ -199,7 +197,7 @@ void Queue::pruneLogFile()
 
         shared_ptr<PruneCollector> pc(new PruneCollector());
 
-        LOG4CXX_DEBUG(logger,"Collecting Messages()");
+        T_DEBUG("Collecting Messages()");
 
         //First we replay the queue log and collect the messages that are no longer needed
         {
@@ -223,7 +221,7 @@ void Queue::pruneLogFile()
 
         assert(rc == 0); //FIXME: better have worked
 
-        LOG4CXX_DEBUG(logger,"Populating new log()");
+        T_DEBUG("Populating new log()");
 
         //Replay old log to create a new pruned log
         {
@@ -249,7 +247,7 @@ void Queue::pruneLogFile()
             {
                 Guard g(mutex);
                 is_pruning = false;
-                LOG4CXX_DEBUG(logger,"Kept Unread Messages()");
+                T_DEBUG("Kept Unread Messages()");
                 this->queue_length = ph->queue_length;
                 this->unique_keys  = ph->unique_keys;
                 this->queue.clear();
@@ -264,7 +262,7 @@ void Queue::pruneLogFile()
             }
         }
 
-        LOG4CXX_DEBUG(logger,"Creating new log client");
+        T_DEBUG("Creating new log client");
 
         //Finally, create log processor to read from
         {
@@ -280,13 +278,13 @@ void Queue::pruneLogFile()
 
     }catch(TException e){
 
-        LOG4CXX_ERROR(logger,e.what());
+        T_ERROR(e.what());
 
     }catch(...){
         perror("Pruning failed big time");
     }
 
-    LOG4CXX_DEBUG(logger,"Exiting pruneLogFile()");
+    T_DEBUG("Exiting pruneLogFile()");
 }
 
 void Queue::enqueue(const QueueMessage &m)
@@ -333,11 +331,11 @@ void Queue::enqueue(const string &mess, bool priority)
         //write it to log
         queue_log->write( (uint8_t *)s.c_str(), (uint32_t) s.length() );
 
-        //LOG4CXX_DEBUG(logger,"Adding Message:"+mess);
+        //T_DEBUG("Adding Message:%s",mess.c_str());
 
         queue_length++;
     }else{
-        LOG4CXX_DEBUG(logger,"Skipping non unique message:"+mess);
+        T_DEBUG(logger,"Skipping non unique message:%s",mess.c_str());
     }
 }
 

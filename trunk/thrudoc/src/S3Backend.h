@@ -13,7 +13,6 @@
 #if HAVE_LIBEXPAT && HAVE_LIBCURL
 
 #include <string>
-#include <log4cxx/logger.h>
 
 #include "Thrudoc.h"
 #include "ThrudocBackend.h"
@@ -36,7 +35,6 @@ class S3Backend : public ThrudocBackend
                        const std::string * value);
 
     private:
-        static log4cxx::LoggerPtr logger;
 
         std::string bucket_prefix;
 };

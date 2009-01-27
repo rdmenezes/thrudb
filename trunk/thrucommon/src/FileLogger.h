@@ -12,13 +12,13 @@
 #include <boost/filesystem/fstream.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/shared_ptr.hpp>
-#include <log4cxx/logger.h>
+
 #include <string>
-#include <thrift/concurrency/Mutex.h>
-#include <thrift/protocol/TBinaryProtocol.h>
-#include <thrift/protocol/TDenseProtocol.h>
-#include <thrift/transport/TFileTransport.h>
-#include <thrift/transport/TTransportUtils.h>
+#include <concurrency/Mutex.h>
+#include <protocol/TBinaryProtocol.h>
+#include <protocol/TDenseProtocol.h>
+#include <transport/TFileTransport.h>
+#include <transport/TTransportUtils.h>
 
 #include "EventLog.h"
 #include "ThruFileTransport.h"
@@ -26,7 +26,7 @@
 class FileLogger
 {
     public:
-        FileLogger (const std::string & log_directory, 
+        FileLogger (const std::string & log_directory,
                     const std::string & log_prefix, unsigned int max_ops,
                     unsigned int sync_wait);
         ~FileLogger ();
@@ -35,8 +35,6 @@ class FileLogger
         void roll_log ();
 
     private:
-        static log4cxx::LoggerPtr logger;
-
         // this will be used to write to the log file
         boost::shared_ptr<ThruFileWriterTransport> log_transport;
         boost::shared_ptr<EventLogClient> log_client;

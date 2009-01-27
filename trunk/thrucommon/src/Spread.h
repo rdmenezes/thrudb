@@ -7,7 +7,6 @@
 
 #if HAVE_LIBSPREAD
 
-#include <log4cxx/logger.h>
 #include <map>
 #include <sp.h>
 #include <string>
@@ -64,11 +63,11 @@ class Spread
         void subscribe (const std::string & sender, const std::string & group,
                         const int message_type,
                         SubscriberCallbackInfo * callback_info);
-        void send (const service service_type, const std::string & group, 
-                   const int message_type, const char * message, 
+        void send (const service service_type, const std::string & group,
+                   const int message_type, const char * message,
                    const int message_len);
         void queue (const service service_type, const std::string & group,
-                    const int message_type, const char * message, 
+                    const int message_type, const char * message,
                     const int message_len);
         void run (int count);
 
@@ -87,7 +86,6 @@ class Spread
         }
 
     private:
-        static log4cxx::LoggerPtr logger;
 
         std::string name;
         std::string private_name;
@@ -98,13 +96,13 @@ class Spread
             std::vector<SubscriberCallbackInfo *> > > > subscriptions;
         std::queue<QueuedMessage *> pending_messages;
 
-        void dispatch (const std::string & sender, 
-                       const std::vector<std::string> & groups, 
-                       const int message_type, const char * message, 
+        void dispatch (const std::string & sender,
+                       const std::vector<std::string> & groups,
+                       const int message_type, const char * message,
                        const int message_len);
         void make_callbacks (std::vector<SubscriberCallbackInfo *> & callbacks,
                              const std::string & sender,
-                             const std::vector<std::string> & groups, 
+                             const std::vector<std::string> & groups,
                              const int message_type, const char * message,
                              const int message_len);
         void drain_pending ();

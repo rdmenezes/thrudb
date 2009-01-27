@@ -10,7 +10,6 @@
 #include "Thrudoc.h"
 #include "ThrudocPassthruBackend.h"
 
-#include <log4cxx/logger.h>
 #include <protocol/TBinaryProtocol.h>
 #include <set>
 #include <Spread.h>
@@ -21,18 +20,16 @@ class SpreadBackend : public ThrudocPassthruBackend
 {
     public:
         SpreadBackend (boost::shared_ptr<ThrudocBackend> backend,
-                       const std::string & spread_name, 
+                       const std::string & spread_name,
                        const std::string & spread_private_name,
                        const std::string & spread_group);
 
-        void put (const std::string & bucket, const std::string & key, 
+        void put (const std::string & bucket, const std::string & key,
                   const std::string & value);
         void remove (const std::string & bucket, const std::string & key);
         std::string admin (const std::string & op, const std::string & data);
 
     private:
-        static log4cxx::LoggerPtr logger;
-
         Spread spread;
         std::string spread_group;
 

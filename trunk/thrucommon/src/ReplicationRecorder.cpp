@@ -48,7 +48,7 @@ ReplicationRecorder::ReplicationRecorder (const string & replication_name,
                             live_callback_info);
 
     // subscribe to "replay" messages, both broadcast and direct
-    SubscriberCallbackInfo * replay_callback_info = 
+    SubscriberCallbackInfo * replay_callback_info =
         new SubscriberCallbackInfo ();
     replay_callback_info->callback = &replay_message_callback;
     replay_callback_info->data = this;
@@ -63,8 +63,8 @@ void ReplicationRecorder::record ()
     this->spread.run (0);
 }
 
-bool ReplicationRecorder::handle_orig_message 
-(const std::string & /* sender */, 
+bool ReplicationRecorder::handle_orig_message
+(const std::string & /* sender */,
  const std::vector<std::string> & /* groups */,
  const int /* message_type */, const char * message, const int message_len)
 {
@@ -92,7 +92,7 @@ bool ReplicationRecorder::handle_orig_message
     return true;
 }
 
-bool ReplicationRecorder::handle_replay_message 
+bool ReplicationRecorder::handle_replay_message
 (const std::string & sender,
  const std::vector<std::string> & /* groups */,
  const int /* message_type */, const char * message, const int /* message_len */)
@@ -120,7 +120,7 @@ bool ReplicationRecorder::handle_replay_message
         LOG4CXX_DEBUG (logger, "handle_replay_message: found uuid, returning next.uuid=" +
                        next->message->uuid);
         // send it
-        this->spread.queue (RELIABLE_MESS | SELF_DISCARD, sender, 
+        this->spread.queue (RELIABLE_MESS | SELF_DISCARD, sender,
                             REPLAY_MESSAGE_TYPE, next->buf, next->len);
     }
     else
@@ -128,7 +128,7 @@ bool ReplicationRecorder::handle_replay_message
         LOG4CXX_DEBUG (logger, "handle_replay_message: no next, returning NULL");
         // send none response
         string none = "none";
-        this->spread.queue (RELIABLE_MESS | SELF_DISCARD, sender, 
+        this->spread.queue (RELIABLE_MESS | SELF_DISCARD, sender,
                             REPLAY_MESSAGE_TYPE, none.c_str (),
                             none.length ());
     }

@@ -10,9 +10,10 @@
 #ifdef HAVE_CONFIG_H
 #include "thrudoc_config.h"
 #endif
-/* hack to work around thrift and log4cxx installing config.h's */
+/* hack to work around thrift installing config.h's */
 #undef HAVE_CONFIG_H
 
+#include "ThruLogging.h"
 #include "BloomBackend.h"
 #include "bloom_filter.hpp"
 
@@ -20,21 +21,18 @@ using namespace facebook::thrift::concurrency;
 using namespace thrudoc;
 using namespace boost;
 using namespace std;
-using namespace log4cxx;
-
-LoggerPtr BloomBackend::logger (Logger::getLogger ("BloomBackend"));
 
 BloomBackend::BloomBackend( shared_ptr<ThrudocBackend> backend )
     : filter_space(10000000)
 {
-    LOG4CXX_INFO(logger,"BloomBackend");
+    T_DEBUG("BloomBackend");
     this->set_backend (backend);
 
     hit_filter   = new bloom_filter(filter_space,1.0/(1.0 * filter_space), ((int) 100000*rand()));
     miss_filter  = new bloom_filter(filter_space,1.0/(1.0 * filter_space), ((int) 100000*rand()));
     miss_filter2 = new bloom_filter(filter_space,1.0/(1.0 * filter_space), ((int) 100000*rand()));
 
-    LOG4CXX_INFO(logger,"Started");
+    T_DEBUG("Started");
 }
 
 

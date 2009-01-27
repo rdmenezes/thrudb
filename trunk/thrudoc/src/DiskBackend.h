@@ -9,10 +9,7 @@
 #ifndef _THRUDOC_DISK_BACKEND_H_
 #define _THRUDOC_DISK_BACKEND_H_
 
-#if HAVE_LIBBOOST_FILESYSTEM && HAVE_LIBCRYPTO
-
 #include <string>
-#include <log4cxx/logger.h>
 #include <boost/shared_ptr.hpp>
 
 #include <transport/TTransportUtils.h>
@@ -42,8 +39,6 @@ class DiskBackend : public ThrudocBackend
                        const std::string * value);
 
     protected:
-        static log4cxx::LoggerPtr logger;
-
         std::string doc_root;
 
         void get_dir_pieces (std::string & d1, std::string & d2,
@@ -58,6 +53,5 @@ class DiskBackend : public ThrudocBackend
                                    const std::string & key);
 };
 
-#endif /* HAVE_LIBBOOST_FILESYSTEM && HAVE_LIBCRYPTO */
 
 #endif

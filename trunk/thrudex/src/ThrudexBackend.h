@@ -3,7 +3,6 @@
 
 #include "Thrudex.h"
 
-#include <log4cxx/logger.h>
 
 class ThrudexBackend
 {
@@ -27,8 +26,7 @@ class ThrudexBackend
 
     virtual std::string admin(const std::string &op, const std::string &data);
 
- private:
-    static log4cxx::LoggerPtr logger;
+
 };
 
 #endif

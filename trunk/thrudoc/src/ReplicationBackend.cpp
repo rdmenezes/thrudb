@@ -27,22 +27,21 @@ using namespace boost;
 using namespace facebook::thrift::concurrency;
 using namespace facebook::thrift::protocol;
 using namespace facebook::thrift::transport;
-using namespace log4cxx;
 using namespace std;
 using namespace thrudoc;
 
 string SP_error_to_string (int error);
 
-class ReplicationWait 
+class ReplicationWait
 {
     public:
         // uuid is just for logging/debugging purposes
         ReplicationWait (string uuid, uint32_t max_wait)
         {
-            char buf[128];
-            sprintf (buf, "ReplicationWait: uuid=%s, max_wait=%d", 
+
+            T_DEBUG("ReplicationWait: uuid=%s, max_wait=%d",
                      uuid.c_str (), max_wait);
-            LOG4CXX_DEBUG (logger, buf);
+
 
             this->uuid = uuid;
             this->max_wait = max_wait;
@@ -56,15 +55,14 @@ class ReplicationWait
 
         ~ReplicationWait ()
         {
-            LOG4CXX_DEBUG (logger, "~ReplicationWait: uuid=" + 
-                           this->uuid);
+            T_DEBUG ("~ReplicationWait: uuid=%s" + this->uuid.c_str());
             pthread_cond_destroy (&this->condition);
             pthread_mutex_destroy (&this->mutex);
         }
 
         void wait ()
         {
-            LOG4CXX_DEBUG (logger, "wait: uuid=" + this->uuid);
+            T_DEBUG ("wait: uuid=%s", this->uuid.c_str());
 #if defined (HAVE_CLOCK_GETTIME)
             int err;
             struct timespec abstime;
@@ -73,15 +71,15 @@ class ReplicationWait
             {
                 abstime.tv_sec += this->max_wait;
                 // cond_timedwait will unlock mutex so release can happen
-                err = pthread_cond_timedwait (&this->condition, &this->mutex, 
+                err = pthread_cond_timedwait (&this->condition, &this->mutex,
                                               &abstime);
-                // we need to free the mutex back up, cond_timedwait will lock 
+                // we need to free the mutex back up, cond_timedwait will lock
                 // it before it comes out
                 pthread_mutex_unlock (&this->mutex);
                 if (err == ETIMEDOUT)
                 {
                     this->exception.what = "replication timeout exceeded";
-                    LOG4CXX_WARN (logger, "wait: " + this->exception.what);
+                    T_INFO("wait: %s", this->exception.what);
                     return;
                 }
             }
@@ -98,9 +96,7 @@ class ReplicationWait
             // we'll wait on the mutex to free up so that we don't send a
             // release before someone else is waiting on it
             pthread_mutex_lock (&this->mutex);
-            LOG4CXX_DEBUG (logger, "release: ret=" + ret + 
-                           ", exception.what=" + exception.what +
-                           ", uuid=" + this->uuid);
+
             this->ret = ret;
             this->exception = exception;
             pthread_cond_signal (&this->condition);
@@ -119,7 +115,7 @@ class ReplicationWait
         }
 
     private:
-        static log4cxx::LoggerPtr logger;
+
 
         string uuid;
         uint32_t max_wait;
@@ -131,8 +127,6 @@ class ReplicationWait
 };
 
 // private
-LoggerPtr ReplicationWait::logger (Logger::getLogger ("ReplicationWait"));
-LoggerPtr ReplicationBackend::logger (Logger::getLogger ("ReplicationBackend"));
 
 ReplicationBackend::ReplicationBackend (shared_ptr<ThrudocBackend> backend,
                                         const string & replication_name,
@@ -142,12 +136,12 @@ ReplicationBackend::ReplicationBackend (shared_ptr<ThrudocBackend> backend,
                                         const int replication_status_flush_frequency) :
     spread (replication_name, replication_private_name)
 {
-    char buf[1024];
-    sprintf (buf, "ReplicationBackend: replication_name=%s, replication_private_name=%s, replication_group=%s, replication_status_file=%s, replication_status_flush_frequency=%d",
+
+    T_DEBUG( "ReplicationBackend: replication_name=%s, replication_private_name=%s, replication_group=%s, replication_status_file=%s, replication_status_flush_frequency=%d",
              replication_name.c_str (), replication_private_name.c_str (),
              replication_group.c_str (), replication_status_file.c_str (),
              replication_status_flush_frequency);
-    LOG4CXX_INFO (logger, buf);
+
 
     this->set_backend (backend);
     this->replication_group = replication_group;
@@ -162,7 +156,7 @@ ReplicationBackend::ReplicationBackend (shared_ptr<ThrudocBackend> backend,
                             live_callback_info);
 
     // subscribe to "replay" messages
-    SubscriberCallbackInfo * replay_callback_info = 
+    SubscriberCallbackInfo * replay_callback_info =
         new SubscriberCallbackInfo ();
     replay_callback_info->callback = &replay_message_callback;
     replay_callback_info->data = this;
@@ -170,13 +164,13 @@ ReplicationBackend::ReplicationBackend (shared_ptr<ThrudocBackend> backend,
                             REPLAY_MESSAGE_TYPE, replay_callback_info);
 
     int fd;
-    fd = ::open (this->replication_status_file.c_str (), 0x0, 
+    fd = ::open (this->replication_status_file.c_str (), 0x0,
                  S_IRUSR | S_IWUSR| S_IRGRP | S_IROTH);
     listener_live = true; // we're live unless we load a last_uuid in a sec
     if (fd)
     {
-        LOG4CXX_DEBUG (logger, "ReplicationBackend: opened status file=" +
-                       this->replication_status_file);
+        T_DEBUG (logger, "ReplicationBackend: opened status file=%s",
+                 this->replication_status_file.c_str());
         char buf[64] = "";
         ::read (fd, buf, 64);
         this->last_uuid = buf;
@@ -185,8 +179,8 @@ ReplicationBackend::ReplicationBackend (shared_ptr<ThrudocBackend> backend,
         {
             listener_live = false;
             request_next (this->last_uuid);
-            LOG4CXX_INFO (logger, "ReplicationBackend: found last_uuid=" +
-                          this->last_uuid);
+            T_DEBUG ( "ReplicationBackend: found last_uuid=%s",
+                      this->last_uuid.c_str());
         }
     }
 
@@ -196,7 +190,7 @@ ReplicationBackend::ReplicationBackend (shared_ptr<ThrudocBackend> backend,
                        (void *)this) != 0)
     {
         char error[] = "ReplicationBackend: start_listener_thread failed\n";
-        LOG4CXX_ERROR (logger, error);
+        T_ERROR (error);
         ThrudocException e;
         e.what = error;
         throw e;
@@ -205,7 +199,7 @@ ReplicationBackend::ReplicationBackend (shared_ptr<ThrudocBackend> backend,
 
 ReplicationBackend::~ReplicationBackend ()
 {
-    LOG4CXX_INFO (logger, "~ReplicationBackend");
+    T_DEBUG ( "~ReplicationBackend");
     // we're no longer live, don't accept connections
     this->listener_live = false;
     // tell the listener to exit
@@ -217,11 +211,11 @@ ReplicationBackend::~ReplicationBackend ()
     // rest of this needs to happen after we've joined the reader thread
     // and stopped taking new requests
 
-    // it's string and shared_ptr so removing them from the map should make 
+    // it's string and shared_ptr so removing them from the map should make
     // them go away
     pending_waits.clear ();
 
-    // need to do this after we stop the listener thread else we may never 
+    // need to do this after we stop the listener thread else we may never
     // empty it
     while (!pending_messages.empty ())
     {
@@ -309,7 +303,7 @@ string ReplicationBackend::generate_uuid ()
     return string (uuid_str);
 }
 
-string ReplicationBackend::send_orig_message_and_wait 
+string ReplicationBackend::send_orig_message_and_wait
 (string method, map<string, string> params)
 {
     // TODO: don't recreate these every time...
@@ -328,7 +322,7 @@ string ReplicationBackend::send_orig_message_and_wait
     m->write (&prot);
     string message = mbuf->getBufferAsString ();
 
-    LOG4CXX_DEBUG (logger, "send_orig_message_and_wait: begin uuid=" + m->uuid);
+    T_DEBUG ("send_orig_message_and_wait: begin uuid=%s",m->uuid);
 
     shared_ptr<ReplicationWait> wait (new ReplicationWait (m->uuid, 2));
     // install wait
@@ -346,7 +340,7 @@ string ReplicationBackend::send_orig_message_and_wait
         RWGuard g (this->pending_waits_mutex, true);
         pending_waits.erase (m->uuid);
     }
-    LOG4CXX_DEBUG (logger, "send_orig_message_and_wait: done uuid=" + m->uuid);
+    T_DEBUG ( "send_orig_message_and_wait: done uuid=%s", m->uuid);
 
     // clean up
     delete m;
@@ -361,8 +355,8 @@ string ReplicationBackend::send_orig_message_and_wait
     return wait->get_ret ();
 }
 
-bool ReplicationBackend::handle_orig_message 
-(const std::string & /* sender */, 
+bool ReplicationBackend::handle_orig_message
+(const std::string & /* sender */,
  const std::vector<std::string> & /* groups */,
  const int /* message_type */, const char * message, const int message_len)
 {
@@ -378,30 +372,27 @@ bool ReplicationBackend::handle_orig_message
 
     if (this->listener_live)
     {
-        if (logger->isDebugEnabled ())
-        {
-            char buf[64];
-            sprintf (buf, "handle_orig_message: pending_messages.size=%d", 
+
+        T_DEBUG( "handle_orig_message: pending_messages.size=%d",
                      (int)pending_messages.size ());
-            LOG4CXX_DEBUG (logger, buf);
-        }
+
         // drain anything in the queue and then do this one.
-        while (!this->pending_messages.empty ()) 
+        while (!this->pending_messages.empty ())
         {
             Message * drain = this->pending_messages.front ();
             this->pending_messages.pop ();
-            LOG4CXX_DEBUG (logger, "handle_orig_message: drain.uuid=" +
-                           drain->uuid);
+            T_DEBUG( "handle_orig_message: drain.uuid=%s",
+                     drain->uuid.c_str());
             do_message (drain);
             delete drain;
         }
-        LOG4CXX_DEBUG (logger, "handle_orig_message: message.uuid=" + m->uuid);
+        T_DEBUG ("handle_orig_message: message.uuid=%s", m->uuid.c_str());
         do_message (m);
         delete m;
     }
     else
     {
-        LOG4CXX_DEBUG (logger, "handle_orig_message: push.uuid=" + m->uuid);
+        T_DEBUG ("handle_orig_message: push.uuid=%s", m->uuid.c_str());
         // queue it
         this->pending_messages.push (m);
     }
@@ -410,12 +401,12 @@ bool ReplicationBackend::handle_orig_message
 }
 
 // TODO: handle when we don't hear from our replay host for a while...
-bool ReplicationBackend::handle_replay_message 
+bool ReplicationBackend::handle_replay_message
 (const std::string & sender,
  const std::vector<std::string> & /* groups */,
  const int /* message_type */, const char * message, const int message_len)
 {
-    LOG4CXX_DEBUG (logger, "handle_replay_message:");
+    T_DEBUG ("handle_replay_message:");
 
     // first one to answer becomes the person we'll ask in the future
     if (this->current_replay_name.empty ())
@@ -446,14 +437,14 @@ bool ReplicationBackend::handle_replay_message
         {
             // we haven't caught up yet
             request_next (m->uuid);
-            LOG4CXX_DEBUG (logger, "handle_replay_message: catchup.uuid=" + 
-                           m->uuid);
+            T_DEBUG ( "handle_replay_message: catchup.uuid=%s",
+                      m->uuid.c_str());
             do_message (m);
         }
         else
         {
-            LOG4CXX_DEBUG (logger, "handle_replay_message: caughtup.uuid=" +
-                           m->uuid);
+            T_DEBUG ("handle_replay_message: caughtup.uuid=%s",
+                     m->uuid.c_str());
             // we've caught back up
             this->listener_live = true;
         }
@@ -462,7 +453,7 @@ bool ReplicationBackend::handle_replay_message
     }
     else
     {
-        LOG4CXX_DEBUG (logger, "handle_replay_message: caughtup.uuid=none");
+        T_DEBUG ("handle_replay_message: caughtup.uuid=none");
         // we're out of stuff to replay, go back to live, hopefully nothing
         // actually happened since the last message we recorded
         this->listener_live = true;
@@ -475,11 +466,11 @@ bool ReplicationBackend::handle_replay_message
 
 void * ReplicationBackend::start_listener_thread (void * ptr)
 {
-    LOG4CXX_INFO (logger, "start_listener_thread: ");
+    T_DEBUG ( "start_listener_thread: ");
     (((ReplicationBackend*)ptr)->listener_thread_run ());
     return NULL;
 }
-                            
+
 void ReplicationBackend::listener_thread_run ()
 {
     time_t last_flush = time (0);
@@ -494,29 +485,27 @@ void ReplicationBackend::listener_thread_run ()
         }
         catch (SpreadException & e)
         {
-            LOG4CXX_ERROR (logger, "listener_thread_run: exception e.what=" +
-                           e.message);
+            T_ERROR ("listener_thread_run: exception e.what=%s",e.message.c_str());
             // stop the replication thread
             this->listener_thread_go = false;
         }
         catch (ThrudocException & e)
         {
-            LOG4CXX_ERROR (logger, "listener_thread_run: exception e.what=" +
-                           e.what);
+            T_ERROR ("listener_thread_run: exception e.what=%s",e.what.c_str());
             // stop the replication thread
             this->listener_thread_go = false;
         }
 
-        if ((last_flush + this->replication_status_flush_frequency) < 
+        if ((last_flush + this->replication_status_flush_frequency) <
             time (0))
         {
-            LOG4CXX_DEBUG (logger, "listener_thread_run: flushing last_uuid=" +
-                           this->last_uuid);
+            T_DEBUG ( "listener_thread_run: flushing last_uuid=%s",
+                      this->last_uuid.c_str());
             int fd;
             fd = ::open (this->replication_status_file.c_str (),
-                         O_RDWR | O_TRUNC | O_CREAT, 
+                         O_RDWR | O_TRUNC | O_CREAT,
                          S_IRUSR | S_IWUSR| S_IRGRP | S_IROTH);
-            ::write (fd, this->last_uuid.c_str (), 
+            ::write (fd, this->last_uuid.c_str (),
                      this->last_uuid.length ());
             fsync (fd);
             ::close (fd);
@@ -527,7 +516,7 @@ void ReplicationBackend::listener_thread_run ()
 
 void ReplicationBackend::do_message (Message * message)
 {
-    LOG4CXX_DEBUG (logger, "do_message: message.method=" + message->method);
+    T_DEBUG ("do_message: message.method=%s", message->method.c_str());
     string ret;
     ThrudocException exception;
     try
@@ -538,8 +527,7 @@ void ReplicationBackend::do_message (Message * message)
             string key = message->params["key"];
             string value = message->params["value"];
 
-            LOG4CXX_DEBUG (logger, "replication: put: bucket=" + bucket + 
-                           ", key=" + key + ", value=" + value);
+
             this->get_backend ()->put (bucket, key, value);
         }
         else if (message->method == "remove")
@@ -547,22 +535,20 @@ void ReplicationBackend::do_message (Message * message)
             string bucket = message->params["bucket"];
             string key = message->params["key"];
 
-            LOG4CXX_DEBUG (logger, "replication remove: bucket=" + bucket + 
-                           ", key=" + key);
+
             this->get_backend ()->remove (bucket, key);
         }
         else if (message->method == "admin")
         {
             string op = message->params["op"];
             string data = message->params["data"];
-            LOG4CXX_DEBUG (logger, "replication admin: op=" + op + ", data=" + 
-                           data);
+
             ret = this->get_backend ()->admin (op, data);
         }
         else
         {
-            LOG4CXX_DEBUG (logger, string ("replication unknown method=" + 
-                                           message->method));
+            T_DEBUG ("replication unknown method=%s",
+                                     message->method.c_str());
         }
     }
     catch (ThrudocException & e)
@@ -575,7 +561,7 @@ void ReplicationBackend::do_message (Message * message)
     catch (...)
     {
         exception.what = "unknown exception, that's not good...";
-        LOG4CXX_WARN (logger, exception.what);
+        T_ERROR ( exception.what);
     }
 
     // if we sent this message signal to the waiting thread that it's complete
@@ -588,7 +574,7 @@ void ReplicationBackend::do_message (Message * message)
             (*i).second->release (ret, exception);
     }
     this->last_uuid = message->uuid;
-    LOG4CXX_DEBUG (logger, "setting last_uuid=" + last_uuid);
+    T_DEBUG ("setting last_uuid=%s", last_uuid);
 }
 
 void ReplicationBackend::request_next (string uuid)
@@ -600,7 +586,7 @@ void ReplicationBackend::request_next (string uuid)
         // respond will be the the new replay host
         who_to_ask = this->replication_group;
     }
-    LOG4CXX_DEBUG (logger, "request_next: who_to_ask=" + who_to_ask);
+    T_DEBUG ("request_next: who_to_ask=%s", who_to_ask);
 
     // we don't want our own message back here...
     this->spread.send (RELIABLE_MESS | SELF_DISCARD, who_to_ask,

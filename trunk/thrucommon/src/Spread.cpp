@@ -1,20 +1,19 @@
 #ifdef HAVE_CONFIG_H
 #include "thrucommon_config.h"
 #endif
-/* hack to work around thrift and log4cxx installing config.h's */
-#undef HAVE_CONFIG_H 
+/* hack to work around thrift installing config.h's */
+#undef HAVE_CONFIG_H
 
 #if HAVE_LIBSPREAD
 
+#include "ThruLogging.h"
 #include "Spread.h"
 #include <stdlib.h>
 
-using namespace log4cxx;
 using namespace std;
 
 string SP_error_to_string (int error);
 
-LoggerPtr Spread::logger (Logger::getLogger ("Spread"));
 
 /* TODO:
  *  - thread safe queuing of messages
@@ -25,10 +24,10 @@ LoggerPtr Spread::logger (Logger::getLogger ("Spread"));
 
 Spread::Spread (const string & name, const string & private_name)
 {
-    char buf[1024];
-    sprintf (buf, "Spread: name=%s, private_name=%s",
+
+    T_DEBUG("Spread: name=%s, private_name=%s",
              name.c_str (), private_name.c_str ());
-    LOG4CXX_INFO (logger, buf);
+
 
     this->name = name;
     this->private_name = private_name;
@@ -47,13 +46,12 @@ Spread::Spread (const string & name, const string & private_name)
 
     // save our private group name
     this->private_group = private_group;
-    LOG4CXX_INFO (logger, "Spread: private_group=" +
-                  this->private_group);
+    T_DEBUG ( "Spread: private_group=%s",this->private_group);
 }
 
 Spread::~Spread ()
 {
-    LOG4CXX_INFO (logger, "~Spread");
+
     map<string, set<string> >::iterator i;
     for (i = this->groups.begin ();
          i != this->groups.end ();
@@ -66,12 +64,12 @@ Spread::~Spread ()
 
 void Spread::join (const std::string & group)
 {
-    LOG4CXX_DEBUG (logger, "join: group=" + group);
+    T_DEBUG ("join: group=%s", group.c_str());
     map<string, set<string> >::iterator i;
     i = this->groups.find (group.c_str ());
     if (i != this->groups.end ())
     {
-        LOG4CXX_DEBUG (logger, "    already a member");
+        T_DEBUG ("    already a member");
     }
     else
     {
@@ -79,27 +77,27 @@ void Spread::join (const std::string & group)
         if (ret < 0)
         {
             string error = SP_error_to_string (ret);
-            LOG4CXX_ERROR (logger, error);
+            T_ERROR (error.c_str());
             throw new SpreadException (error);
         }
         // this will create the groups key in the map, but we'll have to wait
         // for a membership message before we'll have the list of people
         // that's handled elsewhere, as are membership changes
         this->groups[group];
-        LOG4CXX_DEBUG (logger, "    joined");
+        T_DEBUG ("    joined");
     }
 }
 
 void Spread::leave (const std::string & group)
 {
-    LOG4CXX_DEBUG (logger, "leave: group=" + group);
+    T_DEBUG ("leave: group=%s", group.c_str());
     map<string, set<string> >::iterator i;
     i = this->groups.find (group.c_str ());
     if (i != this->groups.end ())
     {
         SP_leave (this->mbox, group.c_str ());
         this->groups.erase (i);
-        LOG4CXX_DEBUG (logger, "    left");
+        T_DEBUG ( "    left");
     }
 }
 
@@ -107,10 +105,10 @@ void Spread::subscribe (const string & sender, const string & group,
                         const int message_type,
                         SubscriberCallbackInfo * callback_info)
 {
-    char buf[256];
-    sprintf (buf, "subscribe: sender=%s, group=%s, message_type=%d", 
+
+    T_DEBUG("subscribe: sender=%s, group=%s, message_type=%d",
              sender.c_str (), group.c_str (), message_type);
-    LOG4CXX_DEBUG (logger, buf);
+
     if (!group.empty () && group.find ("#") == string::npos)
     {
         // make sure we're a member of the group in question
@@ -121,22 +119,18 @@ void Spread::subscribe (const string & sender, const string & group,
 }
 
 void Spread::send (const service service_type, const string & group,
-                   const int message_type, const char * message, 
+                   const int message_type, const char * message,
                    const int message_len)
 {
-    if (logger->isDebugEnabled ())
-    {
-        char buf[128];
-        sprintf (buf, "send: group=%s, message_type=%d, message_len=%d",
-                 group.c_str (), message_type, message_len);
-        LOG4CXX_DEBUG (logger, buf);
-    }
+    T_DEBUG( "send: group=%s, message_type=%d, message_len=%d",
+             group.c_str (), message_type, message_len);
+
     int ret = SP_multicast (this->mbox, service_type, group.c_str (),
                             message_type, message_len, message);
     if (ret < 0)
     {
         string error = SP_error_to_string (ret);
-        LOG4CXX_ERROR (logger, error);
+        T_ERROR (error.c_str());
         throw new SpreadException (error);
     }
 }
@@ -144,15 +138,15 @@ void Spread::send (const service service_type, const string & group,
 
 // message will be copied in to a local buffer
 void Spread::queue (const service service_type, const string & group,
-                    const int message_type, const char * message, 
+                    const int message_type, const char * message,
                     const int message_len)
 {
     if (logger->isDebugEnabled ())
     {
         char buf[128];
-        sprintf (buf, "queue: group=%s, message_type=%d", group.c_str (),
+        T_DEBUG( "queue: group=%s, message_type=%d", group.c_str (),
                  message_type);
-        LOG4CXX_DEBUG (logger, buf);
+
     }
     QueuedMessage * queued_message =
         (QueuedMessage*)malloc (sizeof (QueuedMessage));
@@ -167,12 +161,9 @@ void Spread::queue (const service service_type, const string & group,
 
 void Spread::run (int count)
 {
-    if (logger->isDebugEnabled ())
-    {
-        char buf[64];
-        sprintf (buf, "run: count=%d", count);
-        LOG4CXX_DEBUG (logger, buf);
-    }
+
+    T_DEBUG("run: count=%d", count);
+
 
     service service_type = 0;
     char sender[MAX_GROUP_NAME];
@@ -194,7 +185,7 @@ void Spread::run (int count)
         char groups[max_groups][MAX_GROUP_NAME];
         char buf[buf_size];
 
-        LOG4CXX_DEBUG (logger, "run:    receiving");
+        T_DEBUG ("run:    receiving");
         buf_len = SP_receive (this->mbox, &service_type, sender,
                               max_groups, &num_groups, groups, &type,
                               &endian_mismatch, buf_size, buf);
@@ -222,33 +213,29 @@ void Spread::run (int count)
                 if (ret < 0)
                 {
                     string error = SP_error_to_string (ret);
-                    LOG4CXX_ERROR (logger, error);
+                    T_ERROR (error.c_str());
                     throw new SpreadException (error);
                 }
                 else if (Is_caused_join_mess (service_type))
                 {
-                    LOG4CXX_INFO (logger, string ("run: new member=") + 
-                                  memb_info.changed_member);
+                    T_INFO("run: new member=%s", memb_info.changed_member);
                 }
                 else if (Is_caused_leave_mess (service_type) ||
                          Is_caused_disconnect_mess (service_type))
                 {
-                    LOG4CXX_INFO (logger, string ("run: leaving member=") + 
-                                  memb_info.changed_member);
+                    T_INFO ("run: leaving member=%s",memb_info.changed_member);
                 }
                 else if (Is_caused_network_mess (service_type))
                 {
-                    LOG4CXX_INFO (logger, "run: network change...");
+                    T_INFO ("run: network change...");
                 }
 
                 this->groups[sender].clear ();
-                LOG4CXX_DEBUG (logger, string ("run: membership group=") +
-                               sender);
+                T_DEBUG ("run: membership group=%s", sender.c_str());
                 for (int j = 0; j < num_groups; j++)
                 {
                     this->groups[sender].insert (groups[j]);
-                    LOG4CXX_DEBUG (logger, string ("run:    member=") +
-                                   groups[j]);
+                    T_DEBUG ("run:    member=%s",groups[j].c_str());
                 }
             }
         }
@@ -280,61 +267,52 @@ void Spread::run (int count)
             }
         }
     }
-    LOG4CXX_DEBUG (logger, "run:    done");
+    T_DEBUG ("run:    done");
 }
 
-void Spread::make_callbacks (vector<SubscriberCallbackInfo *> & callbacks, 
-                             const string & sender, 
+void Spread::make_callbacks (vector<SubscriberCallbackInfo *> & callbacks,
+                             const string & sender,
                              const vector<string> & groups,
-                             const int message_type, const char * message, 
+                             const int message_type, const char * message,
                              const int message_len)
 {
-    if (logger->isDebugEnabled ())
-    {
-        char buf[256];
-        sprintf (buf, "make_callbacks: callbacks.size=%d, sender=%s, group[0]=%s, groups.size=%d, message_type=%d",
-                 (int)callbacks.size (), sender.c_str (), groups[0].c_str (),
-                 (int)groups.size (), message_type);
-        LOG4CXX_DEBUG (logger, buf);
-    }
+
+    T_DEBUG("make_callbacks: callbacks.size=%d, sender=%s, group[0]=%s, groups.size=%d, message_type=%d",
+            (int)callbacks.size (), sender.c_str (), groups[0].c_str (),
+            (int)groups.size (), message_type);
+
+
     bool ret;
     vector<SubscriberCallbackInfo *>::iterator i;
     for (i = callbacks.begin (); i < callbacks.end (); i++)
     {
-        LOG4CXX_DEBUG (logger, "make_callbacks:    callback");
+        T_DEBUG ("make_callbacks:    callback");
         SubscriberCallbackInfo * callback_info = (*i);
         // TODO: nulls?
         ret = (callback_info->callback)(this, sender, groups, message_type,
-                                        message, message_len, 
+                                        message, message_len,
                                         callback_info->data);
         if (!ret)
         {
-            LOG4CXX_DEBUG (logger, "make_callbacks:    removing callback");
+            T_DEBUG ("make_callbacks:    removing callback");
             // TODO: what about freeing/deleting?
             callbacks.erase (i);
         }
     }
-    if (logger->isDebugEnabled ())
-    {
-        char buf[256];
-        sprintf (buf, "make_callbacks: done, callbacks.size=%d",
+
+    T_DEBUG("make_callbacks: done, callbacks.size=%d",
                  (int)callbacks.size ());
-        LOG4CXX_DEBUG (logger, buf);
-    }
+
 }
 
 void Spread::dispatch (const string & sender, const vector<string> & groups,
-                       const int message_type, const char * message, 
+                       const int message_type, const char * message,
                        const int message_len)
 {
-    if (logger->isDebugEnabled ())
-    {
-        char buf[128];
-        sprintf (buf, "dispatch: sender=%s, groups[0]=%s, group.size=%d, message_type=%d",
-                 sender.c_str (), groups[0].c_str (), (int)groups.size(),
-                 message_type);
-        LOG4CXX_DEBUG (logger, buf);
-    }
+
+    T_DEBUG("dispatch: sender=%s, groups[0]=%s, group.size=%d, message_type=%d",
+            sender.c_str (), groups[0].c_str (), (int)groups.size(),
+            message_type);
 
     // if we haven't installed any callbacks, there's no reason to continue
     if (this->subscriptions.empty ())
@@ -346,12 +324,12 @@ void Spread::dispatch (const string & sender, const vector<string> & groups,
     for (size_t i = 0; i < groups.size (); i++)
     {
         LOG4CXX_DEBUG (logger, "dispatch:    groups[i]=" + groups[i]);
-        map<string, map<int, map<string, 
-            vector<SubscriberCallbackInfo *> > > >::iterator g = 
+        map<string, map<int, map<string,
+            vector<SubscriberCallbackInfo *> > > >::iterator g =
                 this->subscriptions.find (groups[i]);
         if (g != this->subscriptions.end ())
         {
-            map<int, map<string, 
+            map<int, map<string,
                 vector<SubscriberCallbackInfo *> > >::iterator g_t =
                     (*g).second.find (message_type);
             if (g_t != (*g).second.end ())
@@ -361,8 +339,8 @@ void Spread::dispatch (const string & sender, const vector<string> & groups,
                 if (g_t_s != (*g_t).second.end ())
                 {
                     // we have a sender, group, type match
-                    LOG4CXX_DEBUG (logger, "dispatch:    g_t_s");
-                    this->make_callbacks ((*g_t_s).second, sender, groups, 
+                    T_DEBUG ("dispatch:    g_t_s");
+                    this->make_callbacks ((*g_t_s).second, sender, groups,
                                           message_type, message, message_len);
                 }
                 map<string, vector<SubscriberCallbackInfo *> >::iterator g_t_es =
@@ -370,12 +348,12 @@ void Spread::dispatch (const string & sender, const vector<string> & groups,
                 if (g_t_es != (*g_t).second.end ())
                 {
                     // we have a sender, group, empty type match
-                    LOG4CXX_DEBUG (logger, "dispatch:    g_t_es");
-                    this->make_callbacks ((*g_t_es).second, sender, groups, 
+                    T_DEBUG ("dispatch:    g_t_es");
+                    this->make_callbacks ((*g_t_es).second, sender, groups,
                                           message_type, message, message_len);
                 }
             }
-            map<int, map<string, 
+            map<int, map<string,
                 vector<SubscriberCallbackInfo *> > >::iterator g_et =
                     (*g).second.find (-1);
             if (g_et != (*g).second.end ())
@@ -385,7 +363,7 @@ void Spread::dispatch (const string & sender, const vector<string> & groups,
                 if (g_et_s != (*g_et).second.end ())
                 {
                     // we have a sender, empty group, type match
-                    LOG4CXX_DEBUG (logger, "dispatch:    g_et_s");
+                    T_DEBUG ("dispatch:    g_et_s");
                     this->make_callbacks ((*g_et_s).second, sender, groups,
                                           message_type, message, message_len);
                 }
@@ -394,19 +372,19 @@ void Spread::dispatch (const string & sender, const vector<string> & groups,
                 if (g_et_es != (*g_et).second.end ())
                 {
                     // we have a sender, empty group, empty type match
-                    LOG4CXX_DEBUG (logger, "dispatch:    g_et_es");
+                    T_DEBUG ("dispatch:    g_et_es");
                     this->make_callbacks ((*g_et_es).second, sender, groups,
                                           message_type, message, message_len);
                 }
             }
         }
     }
-    map<string, map<int, map<string, 
+    map<string, map<int, map<string,
         vector<SubscriberCallbackInfo *> > > >::iterator
             eg = this->subscriptions.find ("");
     if (eg != this->subscriptions.end ())
     {
-        map<int, map<string, 
+        map<int, map<string,
             vector<SubscriberCallbackInfo *> > >::iterator eg_t =
                 (*eg).second.find (message_type);
         if (eg_t != (*eg).second.end ())
@@ -416,7 +394,7 @@ void Spread::dispatch (const string & sender, const vector<string> & groups,
             if (eg_t_s != (*eg_t).second.end ())
             {
                 // we have a empty sender, group, type match
-                LOG4CXX_DEBUG (logger, "dispatch:    eg_t_s");
+                T_DEBUG ("dispatch:    eg_t_s");
                 this->make_callbacks ((*eg_t_s).second, sender, groups,
                                       message_type, message, message_len);
             }
@@ -425,12 +403,12 @@ void Spread::dispatch (const string & sender, const vector<string> & groups,
             if (eg_t_es != (*eg_t).second.end ())
             {
                 // we have a empty sender, group, empty type match
-                LOG4CXX_DEBUG (logger, "dispatch:    eg_t_es");
+                T_DEBUG ("dispatch:    eg_t_es");
                 this->make_callbacks ((*eg_t_es).second, sender, groups,
                                       message_type, message, message_len);
             }
         }
-        map<int, map<string, 
+        map<int, map<string,
             vector<SubscriberCallbackInfo *> > >::iterator eg_et =
                 (*eg).second.find (-1);
         if (eg_et != (*eg).second.end ())
@@ -440,7 +418,7 @@ void Spread::dispatch (const string & sender, const vector<string> & groups,
             if (eg_et_s != (*eg_et).second.end ())
             {
                 // we have a empty sender, empty group, type match
-                LOG4CXX_DEBUG (logger, "dispatch:    eg_et_s");
+                T_DEBUG ("dispatch:    eg_et_s");
                 this->make_callbacks ((*eg_et_s).second, sender, groups,
                                       message_type, message, message_len);
             }
@@ -449,7 +427,7 @@ void Spread::dispatch (const string & sender, const vector<string> & groups,
             if (eg_et_es != (*eg_et).second.end ())
             {
                 // we have a empty sender, empty group, empty type match
-                LOG4CXX_DEBUG (logger, "dispatch:    eg_et_es");
+                T_DEBUG ("dispatch:    eg_et_es");
                 this->make_callbacks ((*eg_et_es).second, sender, groups,
                                       message_type, message, message_len);
             }
@@ -459,26 +437,22 @@ void Spread::dispatch (const string & sender, const vector<string> & groups,
 
 void Spread::drain_pending ()
 {
-    if (logger->isDebugEnabled ())
-    {
-        char buf[64];
-        sprintf (buf, "drain_pending: pending_messages.size=%d", 
-                 (int)this->pending_messages.size ());
-        LOG4CXX_DEBUG (logger, buf);
-    }
+    T_DEBUG("drain_pending: pending_messages.size=%d",
+            (int)this->pending_messages.size ());
+
     QueuedMessage * qm;
     while (!this->pending_messages.empty ())
     {
-        LOG4CXX_DEBUG (logger, "drain_pending:    draining");
+        T_DEBUG ("drain_pending:    draining");
         qm = this->pending_messages.front ();
         this->pending_messages.pop ();
-        this->send (qm->service_type, qm->group, qm->message_type, 
+        this->send (qm->service_type, qm->group, qm->message_type,
                     qm->message, qm->message_len);
         free (qm->group);
         free (qm->message);
         free (qm);
     }
-    LOG4CXX_DEBUG (logger, "drain_pending: done");
+    T_DEBUG ("drain_pending: done");
 }
 
 // copied from sp.c, redic that it's a function that aborts in a library rather

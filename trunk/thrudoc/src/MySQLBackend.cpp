@@ -1,12 +1,13 @@
 #ifdef HAVE_CONFIG_H
 #include "thrudoc_config.h"
 #endif
-/* hack to work around thrift and log4cxx installing config.h's */
-#undef HAVE_CONFIG_H 
+/* hack to work around thrift installing config.h's */
+#undef HAVE_CONFIG_H
 
-#if HAVE_LIBMYSQLCLIENT_R
+#if HAVE_MYSQL
 
 #include "MySQLBackend.h"
+#include "ThruLogging.h"
 
 /*
  * TODO:
@@ -16,12 +17,9 @@
  */
 
 using namespace thrudoc;
-using namespace log4cxx;
 using namespace mysql;
 using namespace std;
 
-// private
-LoggerPtr MySQLBackend::logger (Logger::getLogger ("MySQLBackend"));
 
 class Partition
 {
@@ -113,21 +111,21 @@ class Partition
 };
 
 
-MySQLBackend::MySQLBackend (const string & master_hostname, 
+MySQLBackend::MySQLBackend (const string & master_hostname,
                             const short master_port,
-                            const string & slave_hostname, 
+                            const string & slave_hostname,
                             const short slave_port,
                             const string & directory_db,
-                            const string & username, const string & password, 
+                            const string & username, const string & password,
                             int max_value_size)
 {
     {
-        char buf[256];
-        sprintf (buf, "MySQLBackend: master_hostname=%s, master_port=%d, slave_hostname=%s, slave_port=%d, directory_db=%s, username=%s, password=****, max_value_size=%d\n", 
-                 master_hostname.c_str (), master_port, slave_hostname.c_str (), 
-                 slave_port, directory_db.c_str (), username.c_str (), 
-                 max_value_size);
-        LOG4CXX_INFO (logger, buf);
+
+        T_DEBUG("MySQLBackend: master_hostname=%s, master_port=%d, slave_hostname=%s, slave_port=%d, directory_db=%s, username=%s, password=****, max_value_size=%d\n",
+                master_hostname.c_str (), master_port, slave_hostname.c_str (),
+                slave_port, directory_db.c_str (), username.c_str (),
+                max_value_size);
+
     }
     this->master_hostname = master_hostname;
     this->master_port = master_port;
@@ -154,14 +152,14 @@ MySQLBackend::~MySQLBackend ()
     delete this->connection_factory;
 }
 
-set<Partition*, bool(*)(Partition*, Partition*)> * 
+set<Partition*, bool(*)(Partition*, Partition*)> *
 MySQLBackend::load_partitions (const string & bucket)
 {
-    LOG4CXX_INFO (logger, string ("load_partitions: bucket=") + bucket);
+    T_DEBUG("load_partitions: bucket=%s", bucket.c_str());
 
     Connection * connection = connection_factory->get_connection
-        (this->master_hostname.c_str (), this->master_port, 
-         this->slave_hostname.c_str (), this->slave_port, 
+        (this->master_hostname.c_str (), this->master_port,
+         this->slave_hostname.c_str (), this->slave_port,
          this->directory_db.c_str (), this->username.c_str (),
          this->password.c_str ());
 
@@ -182,8 +180,7 @@ MySQLBackend::load_partitions (const string & bucket)
 
     while (partitions_statement->fetch () != MYSQL_NO_DATA)
     {
-        LOG4CXX_INFO (logger, string ("  load_partitions inserting: datatable=") +
-                      pr->get_datatable ());
+        T_DEBUG("  load_partitions inserting: datatable=%s",pr->get_datatable ().c_str());
         new_partitions->insert (new Partition (pr));
     }
 
@@ -191,12 +188,12 @@ MySQLBackend::load_partitions (const string & bucket)
 
     if (new_partitions->size () > 0)
     {
-        set<Partition*, bool(*)(Partition*, Partition*)> * old_partitions = 
+        set<Partition*, bool(*)(Partition*, Partition*)> * old_partitions =
             partitions[bucket];
         if (old_partitions)
         {
             set<Partition*, bool(*)(Partition*, Partition*)>::iterator i;
-            for (i = old_partitions->begin (); 
+            for (i = old_partitions->begin ();
                  i != old_partitions->end (); i++)
                 delete (*i);  // each partition
             delete old_partitions; // the set
@@ -205,8 +202,8 @@ MySQLBackend::load_partitions (const string & bucket)
     }
     else
     {
-        LOG4CXX_WARN (logger, string ("load_partitions: request to load ") + 
-                      bucket + string (" with no partitions"));
+        T_INFO ("load_partitions: request to load %s with no paritions",
+                bucket.c_str());
         delete new_partitions;
         new_partitions = NULL;
     }
@@ -243,14 +240,13 @@ string MySQLBackend::get (const string & bucket, const string & key )
     {
         ThrudocException e;
         e.what = key + " not found in " + bucket;
-        LOG4CXX_DEBUG (logger, string ("get: ") + e.what);
+
         throw e;
     }
 
     KeyValueResults * kvr =
         (KeyValueResults*)get_statement->get_bind_results ();
-    LOG4CXX_DEBUG (logger, string ("get: key=") + kvr->get_key () +
-                   string (", value=") + kvr->get_value ());
+    T_DEBUG("get: key=%s value %s", kvr->get_key().c_str(),  kvr->get_value ().c_str());
     value = kvr->get_value ();
 
     get_statement->free_result ();
@@ -317,7 +313,7 @@ string MySQLBackend::scan_helper (ScanResponse & scan_response,
 
     scan_statement->free_result ();
 
-    return scan_response.elements.size() > 0 ? 
+    return scan_response.elements.size() > 0 ?
         scan_response.elements.back ().key : "";
 }
 
@@ -340,11 +336,6 @@ ScanResponse MySQLBackend::scan (const string & bucket, const string & seed,
         // first call, get the first datatable
         find_return = this->find_next_and_checkout (bucket, "0");
     }
-    LOG4CXX_DEBUG (logger, 
-                   string ("scan: hostname=") + 
-                   find_return.connection->get_hostname () +
-                   string (", db=") + find_return.connection->get_db () +
-                   string (", datatable=") + find_return.datatable);
 
     ScanResponse scan_response;
 
@@ -386,12 +377,7 @@ FindReturn MySQLBackend::find_and_checkout (const string & bucket,
 {
     double point = hashing.get_point (key);
 
-    if (logger->isDebugEnabled())
-    {
-        char buf[128];
-        sprintf (buf, "key=%s -> point=%f", key.c_str (), point);
-        LOG4CXX_DEBUG (logger, buf);
-    }
+    T_DEBUG("key=%s -> point=%f", key.c_str (), point);
 
     FindReturn find_return;
 
@@ -420,11 +406,10 @@ FindReturn MySQLBackend::find_and_checkout (const string & bucket,
         delete part;
         if (partition != partitions_set->end ())
         {
-            LOG4CXX_DEBUG (logger, string ("found container, datatable=") +
-                           (*partition)->get_datatable ());
+            T_DEBUG ("found container, datatable=%s",(*partition)->get_datatable ().c_str());
             find_return.connection = connection_factory->get_connection
                 ((*partition)->get_hostname (), (*partition)->get_port (),
-                 (*partition)->get_slave_hostname (), 
+                 (*partition)->get_slave_hostname (),
                  (*partition)->get_slave_port (), (*partition)->get_db (),
                  this->username.c_str (), this->password.c_str ());
             find_return.datatable = (*partition)->get_datatable ();
@@ -432,9 +417,8 @@ FindReturn MySQLBackend::find_and_checkout (const string & bucket,
         }
         else
         {
-            LOG4CXX_ERROR (logger, string ("table ") + bucket + 
-                           string (" has a partitioning problem for key ") + 
-                           key);
+            T_ERROR("table %s has a partitioning problem for key %s",
+                    bucket.c_str(),key.c_str());
             ThrudocException e;
             e.what = "MySQLBackend error";
             throw e;
@@ -444,7 +428,7 @@ FindReturn MySQLBackend::find_and_checkout (const string & bucket,
     {
         ThrudocException e;
         e.what = bucket + " not found in directory";
-        LOG4CXX_WARN (logger, string ("find_and_checkout: ") + e.what);
+        T_INFO("find_and_checkout: %s", e.what.c_str());
         throw e;
     }
 
@@ -454,16 +438,16 @@ FindReturn MySQLBackend::find_and_checkout (const string & bucket,
 FindReturn MySQLBackend::find_next_and_checkout (const string & bucket,
                                                  const string & current_datatable)
 {
-    Connection * connection = connection_factory->get_connection 
+    Connection * connection = connection_factory->get_connection
         (this->master_hostname.c_str (), this->master_port,
          this->slave_hostname.c_str (), this->slave_port,
-         this->directory_db.c_str (), this->username.c_str (), 
+         this->directory_db.c_str (), this->username.c_str (),
          this->password.c_str ());
 
     PreparedStatement * next_statement =
         connection->find_next_statement ();
 
-    StringStringParams * fpp = 
+    StringStringParams * fpp =
         (StringStringParams*)next_statement->get_bind_params ();
     fpp->set_str1 (bucket.c_str ());
     fpp->set_str2 (current_datatable.c_str ());
@@ -488,11 +472,6 @@ FindReturn MySQLBackend::find_next_and_checkout (const string & bucket,
 
     next_statement->free_result ();
 
-    LOG4CXX_DEBUG (logger, 
-                   string ("find_next_and_checkout: hostname=") + 
-                   find_return.connection->get_hostname () +
-                   string (", db=") + find_return.connection->get_db () +
-                   string (", datatable=") + find_return.datatable);
 
     return find_return;
 }
@@ -512,7 +491,7 @@ string MySQLBackend::admin (const string & op, const string & data)
     return "";
 }
 
-void MySQLBackend::validate (const string & bucket, const string * key, 
+void MySQLBackend::validate (const string & bucket, const string * key,
                              const string * value)
 {
     ThrudocBackend::validate (bucket, key, value);
@@ -536,4 +515,4 @@ void MySQLBackend::validate (const string & bucket, const string * key,
     }
 }
 
-#endif /* HAVE_LIBMYSQLCLIENT_R */
+#endif /* HAVE_MYSQL */

@@ -8,11 +8,10 @@
 #if HAVE_LIBSPREAD && HAVE_LIBUUID
 
 #include <EventLog_types.h>
-#include <log4cxx/logger.h>
 #include <queue>
 #include <Spread.h>
 #include <string>
-#include <thrift/concurrency/Mutex.h>
+#include <concurrency/Mutex.h>
 #include <uuid/uuid.h>
 
 #include "Thrudoc.h"
@@ -46,7 +45,6 @@ class ReplicationBackend : public ThrudocPassthruBackend
         std::string generate_uuid ();
 
     private:
-        static log4cxx::LoggerPtr logger;
 
         static void * start_listener_thread (void * ptr);
         static bool orig_message_callback (Spread * /* spread_connection */,
@@ -86,7 +84,7 @@ class ReplicationBackend : public ThrudocPassthruBackend
         facebook::thrift::concurrency::ReadWriteMutex pending_waits_mutex;
 
         void listener_thread_run ();
-        std::string send_orig_message_and_wait 
+        std::string send_orig_message_and_wait
             (std::string method, std::map<std::string, std::string> params);
         void request_next (std::string message);
         void do_message (Message * message);
@@ -96,8 +94,8 @@ class ReplicationBackend : public ThrudocPassthruBackend
                                   const int message_len);
         bool handle_replay_message (const std::string & sender,
                                     const std::vector<std::string> & groups,
-                                    const int message_type, 
-                                    const char * message, 
+                                    const int message_type,
+                                    const char * message,
                                     const int message_len);
 };
 

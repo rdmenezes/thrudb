@@ -10,7 +10,7 @@
 #include "ThrudocPassthruBackend.h"
 
 #include <boost/detail/atomic_count.hpp>
-#include <log4cxx/logger.h>
+
 #include <set>
 #include <string>
 
@@ -44,7 +44,6 @@ class StatsBackend : public ThrudocPassthruBackend
                        const std::string * value);
 
     private:
-        static log4cxx::LoggerPtr logger;
 
         boost::detail::atomic_count get_buckets_count;
         boost::detail::atomic_count get_count;

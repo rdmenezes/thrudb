@@ -5,32 +5,31 @@
 #ifdef HAVE_CONFIG_H
 #include "thrudoc_config.h"
 #endif
-/* hack to work around thrift and log4cxx installing config.h's */
+/* hack to work around thrift installing config.h's */
 #undef HAVE_CONFIG_H
 
-#if HAVE_LIBDB_CXX && HAVE_LIBBOOST_FILESYSTEM
+#if HAVE_BERKELEYDB
 
 #include "BDBBackend.h"
 
 #include "Thrudoc.h"
+#include "ThruLogging.h"
 
 #include <stdexcept>
 #include <boost/filesystem.hpp>
 
 namespace fs = boost::filesystem;
 using namespace thrudoc;
-using namespace log4cxx;
 using namespace std;
 
 #define BDB_BACKEND_MAX_BUCKET_SIZE 32
 #define BDB_BACKEND_MAX_KEY_SIZE 64
 #define BDB_BACKEND_MAX_VALUE_SIZE 104096
 
-LoggerPtr BDBBackend::logger (Logger::getLogger ("BDBBackend"));
 
 BDBBackend::BDBBackend (const string & bdb_home, const int & thread_count)
 {
-    LOG4CXX_INFO (logger, "BDBBackend: bdb_home=" + bdb_home);
+    T_DEBUG("BDBBackend: bdb_home=%s", bdb_home.c_str());
 
     this->bdb_home = bdb_home;
 
@@ -61,7 +60,7 @@ BDBBackend::BDBBackend (const string & bdb_home, const int & thread_count)
     }
     catch (DbException & e)
     {
-        LOG4CXX_ERROR (logger, string ("bdb error: ") + e.what ());
+        T_ERROR ("bdb error: %s", e.what ());
         throw e;
     }
 
@@ -81,7 +80,7 @@ BDBBackend::~BDBBackend ()
     }
     catch (DbException & e)
     {
-        LOG4CXX_ERROR (logger, string ("bdb error: ") + e.what ());
+        T_ERROR ("bdb error: %s", e.what ());
         throw e;
     }
 }
@@ -121,18 +120,18 @@ string BDBBackend::get (const string & bucket, const string & key)
         {
             ThrudocException e;
             e.what = key + " not found in " + bucket;
-            LOG4CXX_DEBUG (logger, string ("get: exception=") + e.what);
+            T_DEBUG ("get: exception=%s", e.what);
             throw e;
         }
     }
     catch (DbDeadlockException & e)
     {
-        LOG4CXX_WARN (logger, string ("get: exception=") + e.what ());
+        T_INFO ("get: exception=%s", e.what ());
         throw e;
     }
     catch (DbException & e)
     {
-        LOG4CXX_ERROR (logger, string ("get: exception=") + e.what ());
+        T_ERROR ("get: exception=%s", e.what ());
         throw e;
     }
 
@@ -156,12 +155,12 @@ void BDBBackend::put (const string & bucket, const string & key,
     }
     catch (DbDeadlockException & e)
     {
-        LOG4CXX_WARN (logger, string ("put: exception=") + e.what ());
+        T_INFO ("put: exception=%s", e.what ());
         throw e;
     }
     catch (DbException & e)
     {
-        LOG4CXX_ERROR (logger, string ("put: exception=") + e.what ());
+        T_ERROR ("put: exception=%s", e.what ());
         throw e;
     }
 }
@@ -178,12 +177,12 @@ void BDBBackend::remove (const string & bucket, const string & key)
     }
     catch (DbDeadlockException & e)
     {
-        LOG4CXX_WARN (logger, string ("put: exception=") + e.what ());
+        T_INFO ("put: exception=%s", e.what ());
         throw e;
     }
     catch (DbException & e)
     {
-        LOG4CXX_ERROR (logger, string ("put: exception=") + e.what ());
+        T_ERROR ("put: exception=%s", e.what ());
         throw e;
     }
 }
@@ -245,13 +244,13 @@ ScanResponse BDBBackend::scan (const string & bucket, const string & seed,
     }
     catch (DbDeadlockException & e)
     {
-        LOG4CXX_WARN (logger, string ("scan: exception=") + e.what ());
+        T_INFO ("scan: exception=%s", e.what ());
         dbc->close ();
         throw e;
     }
     catch (DbException & e)
     {
-        LOG4CXX_ERROR (logger, string ("scan: exception=") + e.what ());
+        T_ERROR ("scan: exception=%s", e.what ());
         dbc->close ();
         throw e;
     }
@@ -283,7 +282,7 @@ string BDBBackend::admin (const string & op, const string & data)
 
         if (!db)
         {
-            LOG4CXX_INFO (logger, "admin: creating db=" + data);
+            T_INFO ("admin: creating db=%s", data.c_str());
 
             u_int32_t db_flags =
                 DB_CREATE       |   // allow creating db
@@ -351,7 +350,7 @@ Db * BDBBackend::get_db (const string & bucket)
         catch (DbException & e)
         {
             delete db;
-            LOG4CXX_WARN (logger, string ("get_db: exception=") + e.what ());
+            T_ERROR("get_db: exception=%s", e.what ());
             ThrudocException de;
             de.what = "BDBBackend error";
             throw de;
@@ -360,4 +359,4 @@ Db * BDBBackend::get_db (const string & bucket)
     return db;
 }
 
-#endif /* HAVE_LIBDB_CXX && HAVE_LIBBOOST_FILESYSTEM */
+#endif /* HAVE_BERKELEYDB */

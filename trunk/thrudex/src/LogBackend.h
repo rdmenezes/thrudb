@@ -12,13 +12,13 @@
 #include <boost/filesystem/fstream.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/shared_ptr.hpp>
-#include <log4cxx/logger.h>
+
 #include <string>
-#include <thrift/concurrency/Mutex.h>
-#include <thrift/protocol/TBinaryProtocol.h>
-#include <thrift/protocol/TDenseProtocol.h>
-#include <thrift/transport/TFileTransport.h>
-#include <thrift/transport/TTransportUtils.h>
+#include <concurrency/Mutex.h>
+#include <protocol/TBinaryProtocol.h>
+#include <protocol/TDenseProtocol.h>
+#include <transport/TFileTransport.h>
+#include <transport/TTransportUtils.h>
 
 #include "ThrudexPassthruBackend.h"
 
@@ -45,7 +45,6 @@ class LogBackend : public ThrudexPassthruBackend
         std::string admin(const std::string &op, const std::string &data);
 
     private:
-        static log4cxx::LoggerPtr logger;
 
         // this will be used to create the event message
         boost::shared_ptr<facebook::thrift::transport::TMemoryBuffer> msg_transport;

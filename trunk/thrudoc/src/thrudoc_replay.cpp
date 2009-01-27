@@ -13,6 +13,11 @@
 /* hack to work around thrift and log4cxx installing config.h's */
 #undef HAVE_CONFIG_H
 
+
+#include <iostream>
+#include <stdexcept>
+#include <sstream>
+
 #include <concurrency/ThreadManager.h>
 #include <concurrency/PosixThreadFactory.h>
 #include <protocol/TBinaryProtocol.h>
@@ -22,205 +27,36 @@
 #include <transport/TServerSocket.h>
 #include <transport/TTransportUtils.h>
 
-#include <iostream>
-#include <stdexcept>
-#include <sstream>
-#include <stdio.h>
-
 #include <boost/shared_ptr.hpp>
-#include <boost/utility.hpp>
 
-#include <log4cxx/logger.h>
-#include <log4cxx/basicconfigurator.h>
-#include <log4cxx/propertyconfigurator.h>
-#include <log4cxx/helpers/exception.h>
-
-#include <EventLog.h>
 
 #include "app_helpers.h"
 #include "ConfigFile.h"
 #include "LogBackend.h"
 #include "ThrudocBackend.h"
 #include "ThrudocHandler.h"
-#include "ThrudocHandler.h"
 #include "ThruFileTransport.h"
+#include "ThruLogging.h"
+#include "Replayer.h"
+#include "Thrudoc.h"
 
-using namespace boost;
-using namespace thrudoc;
 using namespace facebook::thrift;
 using namespace facebook::thrift::concurrency;
 using namespace facebook::thrift::protocol;
 using namespace facebook::thrift::server;
 using namespace facebook::thrift::transport;
-using namespace log4cxx;
-using namespace log4cxx::helpers;
-using namespace std;
 
-LoggerPtr logger (Logger::getLogger ("thrudoc_replay"));
+using namespace std;
 
 //print usage and die
 inline void usage ()
 {
-    cerr<<"thrudoc -f /path/to/thrudoc.conf"<<endl;
+    cerr<<"thrudoc_replay -f /path/to/thrudoc.conf"<<endl;
     cerr<<"\tor create ~/.thrudoc"<<endl;
     cerr<<"\t-nb creates non-blocking server"<<endl;
     exit (-1);
 }
 
-class Replayer : public EventLogIf
-{
-    public:
-        Replayer (shared_ptr<ThrudocBackend> backend, string current_filename,
-                  uint32_t delay_seconds) 
-        {
-            char buf[128];
-            sprintf (buf, "Replayer: current_filename=%s, delay_seconds=%d", 
-                     current_filename.c_str (), delay_seconds);
-            LOG4CXX_INFO (logger, buf);
-
-            this->backend = backend;
-            this->current_filename = current_filename;
-            this->delay_seconds = delay_seconds;
-
-            shared_ptr<ThrudocHandler> handler = shared_ptr<ThrudocHandler>
-                (new ThrudocHandler (this->backend));
-            this->processor = shared_ptr<ThrudocProcessor>
-                (new ThrudocProcessor (handler));
-
-            this->last_position_flush = 0;
-            this->current_position = 0;
-
-            try
-            {
-                string last_position;
-                last_position = this->backend->admin ("get_log_position", "");
-                LOG4CXX_INFO (logger, "last_position=" + last_position);
-                if (!last_position.empty ())
-                {
-                    int index = last_position.find (":");
-                    this->nextLog (last_position.substr (0, index));
-                    this->current_position = 
-                        atol (last_position.substr (index + 1).c_str ());
-                    // we have a last position
-                }
-            }
-            catch (ThrudocException e)
-            {
-                LOG4CXX_WARN (logger, "last_position unknown, assuming epoch");
-            }
-        }
-
-        void log (const Event & event)
-        {
-            if (logger->isDebugEnabled ())
-            {
-                char buf[1024];
-                sprintf (buf, "log: event.timestamp=%ld, event.msg=***", 
-                         event.timestamp);
-                LOG4CXX_DEBUG (logger, buf);
-            }
-
-            if (event.timestamp <= this->current_position)
-            {
-                // we're already at or past this event
-                LOG4CXX_DEBUG (logger, "    skipping");
-                return;
-            }
-
-#define NS_PER_S 1000000000LL
-            if (this->delay_seconds)
-            {
-                // we're supposed to be delaying, figure out when the event
-                // should happen
-                int32_t event_time = (event.timestamp / NS_PER_S) + 
-                    this->delay_seconds;
-                // if that time is in the future
-                int32_t sleep_time = event_time - time (NULL);
-                if (sleep_time > 0)
-                {
-                    if (logger->isDebugEnabled ())
-                    {
-                        char buf[32];
-                        sprintf (buf, "log: delaying until: %d", event_time);
-                        LOG4CXX_DEBUG (logger, buf);
-                    }
-                    // sleep until it
-                    sleep (sleep_time);
-                }
-            }
-
-            // do these really have to be shared pointers?
-            shared_ptr<TTransport> tbuf
-                (new TMemoryBuffer ((uint8_t*)event.message.c_str (), 
-                                    event.message.length (),
-                                    TMemoryBuffer::COPY));
-            shared_ptr<TProtocol> prot = protocol_factory.getProtocol (tbuf);
-
-            try 
-            {
-                processor->process(prot, prot);
-            } 
-            catch (TTransportException& ttx) 
-            {
-                LOG4CXX_ERROR (logger, 
-                               string ("log: client transport error what=") +
-                               ttx.what ());
-                throw ttx;
-            } 
-            catch (TException& x) 
-            {
-                LOG4CXX_ERROR (logger, string ("log: client error what=") +
-                               x.what ());
-                throw x;
-            } 
-            catch (...) 
-            {
-                LOG4CXX_ERROR (logger, "log: client 'other' error");
-                throw;
-            }
-
-            // write our log position out to "storage" every once in a while,
-            // we'll be at most interval behind and thus at most need to replay
-            // that many seconds in to the slave datastore
-            if (time (NULL) > this->last_position_flush + 60)
-            {
-                char buf[64];
-                sprintf (buf, "%s:%ld", get_current_filename ().c_str (), 
-                         event.timestamp);
-                LOG4CXX_DEBUG (logger, string ("log: flushing position=") +
-                               buf);
-                this->backend->admin ("put_log_position", buf);
-                this->last_position_flush = time (NULL);
-            }
-
-            // update the current position
-            this->current_position = event.timestamp;
-        }
-
-        void nextLog (const string & next_filename)
-        {
-            LOG4CXX_INFO (logger, "nextLog: next_filename=" + next_filename);
-            this->current_filename = next_filename;
-        }
-
-        string get_current_filename ()
-        {
-            return this->current_filename;
-        }
-
-    private:
-        static log4cxx::LoggerPtr logger;
-
-        TBinaryProtocolFactory protocol_factory;
-        shared_ptr<ThrudocBackend> backend;
-        shared_ptr<ThrudocProcessor> processor;
-        string current_filename;
-        int64_t current_position;
-        time_t last_position_flush;
-        uint32_t delay_seconds;
-};
-
-LoggerPtr Replayer::logger (Logger::getLogger ("Replayer"));
 
 int main (int argc, char **argv)
 {
@@ -243,10 +79,9 @@ int main (int argc, char **argv)
 
     try
     {
-        PropertyConfigurator::configure (conf_file);
 
         string log_directory = argv[argc-1];
-        LOG4CXX_INFO (logger, "log_directory=" + log_directory);
+        T_INFO ("log_directory=%s", log_directory.c_str());
 
         // open the log index file
         fstream index_file;
@@ -260,34 +95,34 @@ int main (int argc, char **argv)
             index_file.getline (buf, 64);
             log_filename = string (buf);
         }
-        else 
+        else
         {
-            ThrudocException e;
+            thrudoc::ThrudocException e;
             e.what = "error opening log index file";
-            LOG4CXX_ERROR (logger, e.what);
+            T_ERROR ( e.what);
             throw e;
         }
 
         if (log_filename.empty ())
         {
-            ThrudocException e;
+            thrudoc::ThrudocException e;
             e.what = "error log index file empty";
-            LOG4CXX_ERROR (logger, e.what);
+            T_ERROR (e.what);
             throw e;
         }
 
-        shared_ptr<TProtocolFactory>
+        boost::shared_ptr<TProtocolFactory>
             protocolFactory (new TBinaryProtocolFactory ());
 
         // create our backend
         string which = ConfigManager->read<string> ("BACKEND", "mysql");
-        shared_ptr<ThrudocBackend> backend = create_backend (which, 1);
+        boost::shared_ptr<ThrudocBackend> backend = create_backend (which, 1);
 
-        int32_t delay_seconds = 
+        int32_t delay_seconds =
             ConfigManager->read<int32_t> ("REPLAY_DELAY_SECONDS", 0);
 
         // create our replayer with initial log_filename
-        boost::shared_ptr<Replayer> replayer (new Replayer (backend, 
+        boost::shared_ptr<Replayer> replayer (new Replayer (backend,
                                                             log_filename,
                                                             delay_seconds));
         // blank it out so we'll open things up... HACK
@@ -301,20 +136,19 @@ int main (int argc, char **argv)
             {
                 log_filename = replayer->get_current_filename ();
 
-                LOG4CXX_INFO (logger, "opening=" + log_directory + "/" + 
-                              log_filename);
+                T_INFO ("opening=%s/%s", log_directory.c_str(), log_filename.c_str());
 
                 // we have to sleep for a little bit here to give the new file
                 // time to come in to existence to make sure we don't beat
                 // it...
                 sleep (1);
 
-                shared_ptr<ThruFileReaderTransport> 
+                boost::shared_ptr<ThruFileReaderTransport>
                     rlog (new ThruFileReaderTransport (log_directory + "/" +
                                                        log_filename));
-                boost::shared_ptr<EventLogProcessor> 
+                boost::shared_ptr<EventLogProcessor>
                     proc (new EventLogProcessor (replayer));
-                shared_ptr<TProtocolFactory> pfactory (new TBinaryProtocolFactory ());
+                boost::shared_ptr<TProtocolFactory> pfactory (new TBinaryProtocolFactory ());
 
                 if (fileProcessor)
                     delete fileProcessor;

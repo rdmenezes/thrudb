@@ -18,7 +18,7 @@ AC_ARG_WITH(tests,
     AC_HELP_STRING([--with-tests],
                    [build test suite support, requires cppunit (default is no]),
     [with_tests=$withval],
-    [with_tests=no])
+    [with_tests=yes])
 if test "x$with_tests" = "xyes"; then
     AM_PATH_CPPUNIT(1.9.6)
     if test "x$no_cppunit" != "xyes" ; then
@@ -30,7 +30,11 @@ AC_LANG(C++)
 
 
 # thrift(nb) and related requirements
-AC_PATH_PROG(THRIFT, thrift, thrift, $PATH:/usr/local/bin:/usr/bin)
+AC_PATH_PROG(THRIFT, thrift, no, $PATH:/usr/local/bin:/usr/bin)
+if test "x$THRIFT" = "xno"; then                  
+   AC_MSG_ERROR([thrift is required; please install or specify path to thrift compiler])   
+fi
+
 PKG_CHECK_MODULES(THRIFT, [thrift],
                   AC_DEFINE([HAVE_THRIFT], [1], [Define to 1 if you have the thrift library (-lthrift)]))
 
@@ -39,28 +43,34 @@ if test "x$ax_have_libevent" != "xyes"; then
 AC_MSG_ERROR([libevent is required; please install development libraries])   
 fi
 
-# memcached
-AC_ARG_WITH(memcached,
-    AC_HELP_STRING([--with-memcached],
-                   [build in BerkeleyDB backend support (default is yes]),
-    [with_memcached=$withval],
-    [with_memcached=yes])
-if test "$with_memcached" != "no"; then
-    PKG_CHECK_MODULES(MEMCACHED, [libmemcached >= 0.14],
-                      AC_DEFINE([HAVE_LIBMEMCACHED], [1], [Define to 1 if you have the libmemcached library (-lmemcached)]))
-fi
-
 # spread
 AC_ARG_WITH(spread,
     AC_HELP_STRING([--with-spread],
-                   [build in spread backend support (default is yes]),
+                   [build in spread backend support (default is no]),
     [with_spread=$withval],
     [with_spread=yes])
 if test "$with_spread" != "no"; then
-    AC_CHECK_LIB(spread, [open], [],
-                 AC_MSG_ERROR([You must install spread; please install libraries and development files]))
-    AC_CHECK_HEADERS([sp.h],,
-                     AC_MSG_ERROR([sp.h missing; please add spread development files]))
+    AC_LANG_PUSH([C])  
+
+    AC_MSG_CHECKING(Spread Version)  
+                                                                                                                                                                   
+    AC_TRY_RUN([
+#include <sp.h>
+#include <stdio.h>
+int main(void)
+{
+    int v = SPREAD_VERSION;
+    int p = ( (4 << 24) | ( 0 << 16) | 0 );
+	
+    printf("%d ",v);
+    if (v < p) //only use spread > 4.0.0
+        return 1;
+    return 0;
+}       
+],                                                                                                                                                            
+      [AC_MSG_RESULT(OK) AC_DEFINE(HAVE_LIBSPREAD,1,Define if new Spread API)],
+      [AC_MSG_RESULT(no)]  )   
+
 fi
 
 # uuid
@@ -75,30 +85,15 @@ if test "$with_uuid" != "no"; then
 fi
 
 # ssl
-if test "$with_disk" != "no" -o "$with_s3" != "no"; then
-    PKG_CHECK_MODULES(SSL, [libssl],
+PKG_CHECK_MODULES(SSL, [libssl],
                       AC_DEFINE([HAVE_LIBSSL], [1], [Define to 1 if you have the libssl library (-lssl)]))
-    AC_CHECK_LIB([ssl],[ssl3_new],,
-                 AC_MSG_ERROR([OpenSSL developer library 'libssl' not installed; cannot continue.]))
-    AC_CHECK_LIB([crypto],[MD5_Update],,
-                 AC_MSG_ERROR([OpenSSL developer library 'libcrypto' not installed; cannot continue.]))
-    AC_CHECK_HEADERS([openssl/md5.h])
-    AC_CHECK_HEADERS([openssl/hmac.h])
-fi
-
+AC_CHECK_HEADERS([openssl/md5.h])
 
 # boost filesystem
 AX_BOOST_BASE([1.33.1])
-
-if test "$with_disk" != "no" -o "$with_bdb" != "no"; then
 AX_BOOST_FILESYSTEM
-fi
 
-# log4cxx
-AC_CHECK_LIB(log4cxx, [open], [],
-             AC_MSG_ERROR([You must install log4cxx; please install libraries and development files]))
-AC_CHECK_HEADERS([log4cxx/logger.h],,
-                 AC_MSG_ERROR([log4cxx/logger.h missing; please add log4cxx development files]))
+
 
 # misc
 AC_C_CONST

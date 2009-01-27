@@ -1,8 +1,8 @@
 namespace cpp thrudoc
-php_namespace Thrudoc
-perl_package  Thrudoc
+namespace php Thrudoc
+namespace perl Thrudoc
 namespace java thrudoc
-ruby_namespace Thrudoc
+namespace ruby Thrudoc
 
 enum ExceptionType {
      UNKNOWN     = 1,
