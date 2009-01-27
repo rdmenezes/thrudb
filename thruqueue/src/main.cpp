@@ -26,14 +26,7 @@
 #include "QueueManager.h"
 #include "ConfigFile.h"
 #include "utils.h"
-
-#include "log4cxx/logger.h"
-#include "log4cxx/basicconfigurator.h"
-#include "log4cxx/propertyconfigurator.h"
-#include "log4cxx/helpers/exception.h"
-
-using namespace log4cxx;
-using namespace log4cxx::helpers;
+#include "ThruLogging.h"
 
 using namespace std;
 using namespace facebook::thrift;
@@ -45,7 +38,7 @@ using namespace facebook::thrift::server;
 using namespace boost;
 using namespace thruqueue;
 
-LoggerPtr logger(Logger::getLogger("Thruqueue"));
+
 
 //print usage and die
 inline void usage()
@@ -78,11 +71,9 @@ int main(int argc, char **argv) {
         int    thread_count = ConfigManager->read<int>("THREAD_COUNT");
         int    server_port  = ConfigManager->read<int>("SERVER_PORT");
 
-        PropertyConfigurator::configure(conf_file);
-
         QueueManager->startup();
 
-        LOG4CXX_INFO(logger, "Starting up");
+        T_INFO("Starting up");
 
         shared_ptr<TProtocolFactory>  protocolFactory  (new TBinaryProtocolFactory());
         shared_ptr<ThruqueueHandler>  handler          (new ThruqueueHandler());

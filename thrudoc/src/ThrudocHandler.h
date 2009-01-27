@@ -9,7 +9,7 @@
 #include "ThrudocBackend.h"
 
 #include <string>
-#include <log4cxx/logger.h>
+
 
 class ThrudocHandler : virtual public thrudoc::ThrudocIf {
     public:
@@ -27,20 +27,19 @@ class ThrudocHandler : virtual public thrudoc::ThrudocIf {
                    const std::string & bucket,
                    const std::string & seed, int32_t count);
 
-        void putList(std::vector<thrudoc::ThrudocException> & _return, 
+        void putList(std::vector<thrudoc::ThrudocException> & _return,
                      const std::vector<thrudoc::Element> & elements);
-        void getList(std::vector<thrudoc::ListResponse> & _return, 
+        void getList(std::vector<thrudoc::ListResponse> & _return,
                      const std::vector<thrudoc::Element> & elements);
-        void removeList(std::vector<thrudoc::ThrudocException> & _return, 
+        void removeList(std::vector<thrudoc::ThrudocException> & _return,
                         const std::vector<thrudoc::Element> & elements);
-        void putValueList(std::vector<thrudoc::ListResponse> & _return, 
+        void putValueList(std::vector<thrudoc::ListResponse> & _return,
                           const std::vector<thrudoc::Element> & elements);
 
         void admin (std::string & _return, const std::string & op,
                     const std::string & data);
 
     private:
-        static log4cxx::LoggerPtr logger;
 
         boost::shared_ptr<ThrudocBackend> backend;
 };

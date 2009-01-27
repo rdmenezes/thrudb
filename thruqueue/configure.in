@@ -16,28 +16,18 @@ AC_PROG_MAKE_SET
 AC_LANG(C++)
 
 # thrift(nb) and related requirements
-AC_PATH_PROG(THRIFT, thrift, thrift, $PATH:/usr/local/bin:/usr/bin)
+AC_PATH_PROG(THRIFT, thrift, no, $PATH:/usr/local/bin:/usr/bin)
+if test "x$THRIFT" = "xno"; then                  
+   AC_MSG_ERROR([thrift is required; please install or specify path to thrift compiler])   
+fi
+
 PKG_CHECK_MODULES(THRIFTNB, [thrift-nb], 
                   AC_DEFINE([HAVE_THRIFTNB], [1], [Define to 1 if you have the thriftnb library (-lthriftnb)]))
 
-# spread
-AC_ARG_WITH(spread,
-    AC_HELP_STRING([--with-spread],
-                   [build in spread backend support (default is yes]),
-    [with_spread=$withval],
-    [with_spread=yes])
-if test "$with_spread" != "no"; then
-    AC_CHECK_LIB(spread, [open], [],
-                 AC_MSG_ERROR([You must install spread; please install libraries and development files]))
-    AC_CHECK_HEADERS([sp.h],,
-                     AC_MSG_ERROR([sp.h missing; please add spread development files]))
+AX_LIB_EVENT([1.1])
+if test "x$ax_have_libevent" != "xyes"; then
+AC_MSG_ERROR([libevent is required; please install development libraries])   
 fi
-
-# log4cxx
-AC_CHECK_LIB(log4cxx, [open], [],
-             AC_MSG_ERROR([You must install log4cxx; please install libraries and development files]))
-AC_CHECK_HEADERS([log4cxx/logger.h],,
-                 AC_MSG_ERROR([log4cxx/logger.h missing; please add log4cxx development files]))
 
 # misc
 AC_C_CONST

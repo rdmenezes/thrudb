@@ -16,6 +16,7 @@
 #if HAVE_LIBEXPAT && HAVE_LIBCURL
 
 #include "S3Backend.h"
+#include "ThruLogging.h"
 
 #include "Thrudoc.h"
 #include "s3_glue.h"
@@ -26,13 +27,10 @@
 using namespace s3;
 using namespace std;
 using namespace thrudoc;
-using namespace log4cxx;
-
-LoggerPtr S3Backend::logger (Logger::getLogger ("S3Backend"));
 
 S3Backend::S3Backend (string bucket_prefix)
 {
-    LOG4CXX_INFO (logger, "S3Backend: bucket_prefix=" + bucket_prefix);
+    T_DEBUG("S3Backend: bucket_prefix=%s",bucket_prefix.c_str());
     this->bucket_prefix = bucket_prefix;
 }
 
@@ -62,7 +60,7 @@ vector<string> S3Backend::getBuckets ()
         {
             // we're using a prefix, so only things that begin with it are
             // legal bucket names
-            buckets.push_back ((*i)->Name.substr 
+            buckets.push_back ((*i)->Name.substr
                                (this->bucket_prefix.length ()));
         }
     }
@@ -189,7 +187,6 @@ string S3Backend::admin (const string & op, const string & data)
             case 409:
                 e.what = "bucket " + data + " already exists";
         }
-        LOG4CXX_WARN (logger, e.what);
         throw e;
     }
     else if (op == "delete_bucket")
@@ -198,7 +195,7 @@ string S3Backend::admin (const string & op, const string & data)
         validate (data, NULL, NULL);
 
         // NOTE: only works if empty...
-        class response_buffer * b = request ("DELETE", 
+        class response_buffer * b = request ("DELETE",
                                              this->bucket_prefix + data, "", 0,
                                              0, 0, 0);
         int result = b->result;
@@ -219,7 +216,7 @@ string S3Backend::admin (const string & op, const string & data)
                 e.what = "S3Backend error: ENOTEMPTY";
                 break;
         }
-        LOG4CXX_WARN (logger, e.what);
+
         throw e;
     }
     return "";

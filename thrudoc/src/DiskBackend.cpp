@@ -10,10 +10,10 @@
 #ifdef HAVE_CONFIG_H
 #include "thrudoc_config.h"
 #endif
-/* hack to work around thrift and log4cxx installing config.h's */
+/* hack to work around thrift installing config.h's */
 #undef HAVE_CONFIG_H
 
-#if HAVE_LIBBOOST_FILESYSTEM && HAVE_LIBCRYPTO
+
 
 #include "DiskBackend.h"
 
@@ -24,11 +24,11 @@
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include "Thrudoc.h"
+#include "ThruLogging.h"
 
 namespace fs = boost::filesystem;
 using namespace boost;
 using namespace thrudoc;
-using namespace log4cxx;
 using namespace std;
 
 // defines the safety of seed, how many "back-keys" we'll use in case the seed
@@ -38,7 +38,6 @@ using namespace std;
 #define SEED_SEP ';'
 #define SEED_SIZE 3
 
-LoggerPtr DiskBackend::logger (Logger::getLogger ("DiskBackend"));
 
 
 static const std::string base64_chars =
@@ -138,7 +137,7 @@ std::string base64_decode(std::string const& encoded_string) {
 
 DiskBackend::DiskBackend (const string & doc_root)
 {
-    LOG4CXX_INFO (logger, "DiskBackend: doc_root=" + doc_root);
+    T_DEBUG ("DiskBackend: doc_root=%s", doc_root.c_str());
     this->doc_root = doc_root;
     if (!fs::is_directory (doc_root))
     {
@@ -146,9 +145,9 @@ DiskBackend::DiskBackend (const string & doc_root)
         {
             fs::create_directories (doc_root);
         }
-        catch (exception e)
+        catch (std::exception e)
         {
-            LOG4CXX_ERROR (logger, string ("disk error: ") + e.what ());
+            T_ERROR ("disk error: %s",e.what());
             throw e;
         }
     }
@@ -302,7 +301,7 @@ ScanResponse DiskBackend::scan (const string & bucket, const string & seed,
                 // Find next "non-delimiter"
                 pos = seed.find_first_of(SEED_SEP, lastPos);
             }
-            LOG4CXX_DEBUG (logger, "scan: using key=" + key);
+            T_DEBUG ("scan: using key=%s", key.c_str());
         }
 
         i = new fs::directory_iterator (base);
@@ -374,7 +373,7 @@ ScanResponse DiskBackend::scan (const string & bucket, const string & seed,
         else
         {
             // unknown, uh-oh
-            LOG4CXX_WARN (logger, "stack.top(?)=" + (*i)->path ().leaf ());
+            T_INFO ("stack.top(?)=%s", (*i)->path ().leaf ().c_str());
         }
 
         // while we still have dirs on the stack and don't have enough elements
@@ -397,7 +396,7 @@ ScanResponse DiskBackend::scan (const string & bucket, const string & seed,
     {
         scan_response.seed += (*j).key + SEED_SEP;
     }
-    LOG4CXX_DEBUG (logger, "scan: scan_response.seed=" + scan_response.seed);
+    T_DEBUG ("scan: scan_response.seed=%s",scan_response.seed.c_str());
 
     return scan_response;
 }
@@ -414,7 +413,7 @@ string DiskBackend::admin (const string & op, const string & data)
         string base = doc_root + "/" + data;
         if (fs::is_directory (base))
             return "done";
-        LOG4CXX_INFO (logger, "admin: creating dir=" + data);
+        T_DEBUG ("admin: creating dir=%s",data.c_str());
         if (fs::create_directories (base))
             return "done";
     }
@@ -432,10 +431,9 @@ string DiskBackend::admin (const string & op, const string & data)
             // exist
             fs::rename (base, deleted);
         }
-        catch (exception & e)
+        catch (std::exception & e)
         {
-            LOG4CXX_WARN (logger, string ("admin: delete_bucket: what=") +
-                          e.what ());
+            T_ERROR ("admin: delete_bucket: what=%s",e.what ());
             ThrudocException de;
             de.what = "DiskBackend error";
             throw de;
@@ -503,8 +501,6 @@ string DiskBackend::build_filename(const string & bucket, const string & d1,
                                    const string & key)
 {
 
-
-
     return
         doc_root + "/" +
         bucket + "/" +
@@ -514,4 +510,4 @@ string DiskBackend::build_filename(const string & bucket, const string & d1,
         base64_encode(reinterpret_cast<const unsigned char*>(key.c_str()), key.length());
 }
 
-#endif /* HAVE_LIBBOOST_FILESYSTEM && HAVE_LIBCRYPTO */
+

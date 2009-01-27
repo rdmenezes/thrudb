@@ -13,7 +13,6 @@
 /* hack to work around thrift and log4cxx installing config.h's */
 #undef HAVE_CONFIG_H
 
-#if HAVE_LIBBOOST_FILESYSTEM
 
 #include "LogBackend.h"
 #include "utils.h"
@@ -26,22 +25,20 @@ using namespace facebook::thrift;
 using namespace facebook::thrift::concurrency;
 using namespace facebook::thrift::protocol;
 using namespace facebook::thrift::transport;
-using namespace log4cxx;
+
 using namespace std;
 using namespace thrudex;
 
-LoggerPtr LogBackend::logger (Logger::getLogger ("LogBackend"));
+
 
 LogBackend::LogBackend (shared_ptr<ThrudexBackend> backend,
                         const string & log_directory, unsigned int max_ops,
                         unsigned int sync_wait)
 {
-    {
-        char buf[1024];
-        sprintf (buf, "LogBackend: log_directory=%s, max_ops=%u, sync_wait=%u",
-                 log_directory.c_str (), max_ops, sync_wait);
-        LOG4CXX_INFO (logger, buf); 
-    }
+
+    T_DEBUG( "LogBackend: log_directory=%s, max_ops=%u, sync_wait=%u",
+             log_directory.c_str (), max_ops, sync_wait);
+
 
     this->set_backend (backend);
 
@@ -59,7 +56,7 @@ void LogBackend::put (const Document & d)
 
     try
     {
-        //Create raw message 
+        //Create raw message
         msg_client->send_put (d);
         string raw_msg = msg_transport->getBufferAsString ();
         msg_transport->resetBuffer ();
@@ -68,8 +65,7 @@ void LogBackend::put (const Document & d)
     }
     catch (TException e)
     {
-        LOG4CXX_ERROR (logger, string ("put: client succeeded, log failed. partial success, what=") +
-                       e.what ());
+        T_ERROR ("put: client succeeded, log failed. partial success, what=%s",e.what ());
         ThrudexException te;
         te.what = "partial success";
         throw te;
@@ -91,8 +87,7 @@ void LogBackend::remove (const Element & e)
     }
     catch (TException e)
     {
-        LOG4CXX_ERROR (logger, string ("remove: client succeeded, log failed. partial success, what=") +
-                       e.what ());
+        T_ERROR ("remove: client succeeded, log failed. partial success, what=%s",e.what ());
         ThrudexException te;
         te.what = "partial success";
         throw te;
@@ -121,8 +116,7 @@ string LogBackend::admin (const std::string & op, const std::string & data)
         }
         catch (TException e)
         {
-            LOG4CXX_ERROR (logger, string ("admin: client succeeded, log failed. partial success, what=") +
-                           e.what ());
+            T_ERROR ("admin: client succeeded, log failed. partial success, what=%s",e.what ());
             ThrudexException te;
             te.what = "partial success";
             throw te;
@@ -138,7 +132,7 @@ vector<ThrudexException> LogBackend::putList (const vector<Document> & documents
 
     try
     {
-        //Create raw message 
+        //Create raw message
         msg_client->send_putList (documents);
         string raw_msg = msg_transport->getBufferAsString ();
         msg_transport->resetBuffer ();
@@ -147,8 +141,7 @@ vector<ThrudexException> LogBackend::putList (const vector<Document> & documents
     }
     catch (TException e)
     {
-        LOG4CXX_ERROR (logger, string ("putList: client succeeded, log failed. partial success, what=") +
-                       e.what ());
+        T_ERROR ("putList: client succeeded, log failed. partial success, what=%s",e.what ());
         ThrudexException te;
         te.what = "partial success";
         throw te;
@@ -163,7 +156,7 @@ vector<ThrudexException> LogBackend::removeList(const vector<Element> & elements
 
     try
     {
-        //Create raw message 
+        //Create raw message
         msg_client->send_removeList (elements);
         string raw_msg = msg_transport->getBufferAsString ();
         msg_transport->resetBuffer ();
@@ -172,8 +165,7 @@ vector<ThrudexException> LogBackend::removeList(const vector<Element> & elements
     }
     catch (TException e)
     {
-        LOG4CXX_ERROR (logger, string ("removeList: client succeeded, log failed. partial success, what=") +
-                       e.what ());
+        T_ERROR ("removeList: client succeeded, log failed. partial success, what=%s",e.what ());
         ThrudexException te;
         te.what = "partial success";
         throw te;
@@ -197,7 +189,7 @@ Event LogBackend::create_event (const string & message)
     struct timeval now;
     int ret = gettimeofday (&now, NULL);
     assert (ret == 0);
-    event.timestamp = (((int64_t)now.tv_sec) * NS_PER_S) + 
+    event.timestamp = (((int64_t)now.tv_sec) * NS_PER_S) +
         (((int64_t)now.tv_usec) * US_PER_NS);
 #else
 #error "one of either clock_gettime or gettimeofday required for LogBackend"
@@ -208,4 +200,4 @@ Event LogBackend::create_event (const string & message)
     return event;
 }
 
-#endif /* HAVE_LIBBOOST_FILESYSTEM */
+

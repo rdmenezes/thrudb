@@ -2,25 +2,23 @@
 #include "thrudoc_config.h"
 #endif
 /* hack to work around thrift and log4cxx installing config.h's */
-#undef HAVE_CONFIG_H 
+#undef HAVE_CONFIG_H
 
 #include "MemcachedBackend.h"
+#include "ThruLogging.h"
 
 #if HAVE_LIBMEMCACHED
 
 using namespace boost;
 using namespace thrudoc;
-using namespace log4cxx;
+
 using namespace std;
 
-// private
-LoggerPtr MemcachedBackend::logger (Logger::getLogger ("MemcachedBackend"));
 
 MemcachedBackend::MemcachedBackend (shared_ptr<ThrudocBackend> backend,
                                     const string & memcached_servers)
 {
-    LOG4CXX_INFO (logger, string ("MemcachedBackend: memcached_servers=") + 
-                  memcached_servers);
+    T_DEBUG("MemcachedBackend: memcached_servers=%s",memcached_servers.c_str());
 
     this->set_backend (backend);
     this->memcached_servers = memcached_servers;
@@ -48,19 +46,19 @@ string MemcachedBackend::get (const string & bucket, const string & key )
     if (rc == MEMCACHED_SUCCESS)
     {
         value = string (str, str_length);
-        LOG4CXX_DEBUG (logger, string ("get hit: key=") + key);
+        T_DEBUG ("get hit: key=%s", key.c_str());
     }
     else if (rc == MEMCACHED_NOTFOUND)
     {
-        LOG4CXX_DEBUG (logger, string ("get miss: key=") + key);
+        T_DEBUG ("get miss: key=%s",key);
     }
     else
     {
-        char buf[256];
-        sprintf(buf, "memcache get error: bucket=%s, key=%s, strerror=%s", 
-                bucket.c_str (), key.c_str (), 
+
+        T_INFO("memcache get error: bucket=%s, key=%s, strerror=%s",
+                bucket.c_str (), key.c_str (),
                 memcached_strerror(cache, rc));
-        LOG4CXX_WARN (logger, buf);
+
     }
 
     if (str)
@@ -75,7 +73,7 @@ string MemcachedBackend::get (const string & bucket, const string & key )
     return value;
 }
 
-void MemcachedBackend::put (const string & bucket, const string & key, 
+void MemcachedBackend::put (const string & bucket, const string & key,
                             const string & value)
 {
     this->get_backend ()->put (bucket, key, value);
@@ -91,19 +89,19 @@ void MemcachedBackend::remove (const string & bucket, const string & key )
     string cache_key = (bucket + ":" + key);
     memcached_return rc;
     time_t opt_expires= 0;
-    rc = memcached_delete (cache, (char*)cache_key.c_str (), 
+    rc = memcached_delete (cache, (char*)cache_key.c_str (),
                            cache_key.length (), opt_expires);
     if (rc != MEMCACHED_SUCCESS)
     {
-        char buf[256];
-        sprintf(buf, "memcache remove error: bucket=%s, key=%s, strerror=%s", 
-                bucket.c_str (), key.c_str (), 
+
+        T_INFO( "memcache remove error: bucket=%s, key=%s, strerror=%s",
+                bucket.c_str (), key.c_str (),
                 memcached_strerror(cache, rc));
-        LOG4CXX_WARN (logger, buf);
+
     }
 }
 
-void MemcachedBackend::validate (const string & bucket, const string * key, 
+void MemcachedBackend::validate (const string & bucket, const string * key,
                                  const string * value)
 {
     this->get_backend ()->validate (bucket, key, value);
@@ -122,7 +120,7 @@ memcached_st * MemcachedBackend::get_cache ()
 
     if (cache == NULL)
     {
-        LOG4CXX_INFO (logger, "creating memcached_create for thread");
+        T_DEBUG ("creating memcached_create for thread");
 
         cache = memcached_create(NULL);
 
@@ -137,7 +135,7 @@ memcached_st * MemcachedBackend::get_cache ()
     return cache;
 }
 
-void MemcachedBackend::cache_put (const string & cache_key, 
+void MemcachedBackend::cache_put (const string & cache_key,
                                   const string & value)
 {
     memcached_st * cache = get_cache ();
@@ -149,10 +147,10 @@ void MemcachedBackend::cache_put (const string & cache_key,
                         opt_expires, opt_flags);
     if (rc != MEMCACHED_SUCCESS)
     {
-        char buf[256];
-        sprintf(buf, "memcache put error: cache_key=%s, strerror=%s", 
+
+        T_INFO("memcache put error: cache_key=%s, strerror=%s",
                 cache_key.c_str (), memcached_strerror(cache, rc));
-        LOG4CXX_WARN (logger, buf);
+
     }
 }
 

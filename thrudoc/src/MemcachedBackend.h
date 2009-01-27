@@ -7,8 +7,8 @@
 
 #if HAVE_LIBMEMCACHED
 
-#include <memcached.h>
-#include <log4cxx/logger.h>
+#include <libmemcached/memcached.h>
+
 #include <set>
 #include <string>
 #include "Thrudoc.h"
@@ -37,7 +37,6 @@ class MemcachedBackend : public ThrudocPassthruBackend
                         const std::string & value);
 
     private:
-        static log4cxx::LoggerPtr logger;
 
         pthread_key_t memcached_key;
         std::string memcached_servers;

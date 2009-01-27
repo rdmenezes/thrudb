@@ -5,13 +5,12 @@
 #undef HAVE_CONFIG_H
 
 #include "ThrudexBackend.h"
+#include "ThruLogging.h"
 
 using namespace std;
 using namespace boost;
 using namespace thrudex;
-using namespace log4cxx;
 
-LoggerPtr ThrudexBackend::logger (Logger::getLogger ("ThrudexBackend"));
 
 
 ThrudexBackend::ThrudexBackend()
@@ -119,6 +118,6 @@ string ThrudexBackend::admin (const string & op, const string & data)
     {
         return "";
     }
-        
+
     return "";
 }

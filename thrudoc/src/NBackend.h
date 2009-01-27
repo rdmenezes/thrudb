@@ -5,7 +5,7 @@
 #ifndef _N_BACKEND_H_
 #define _N_BACKEND_H_
 
-#include <log4cxx/logger.h>
+
 #include <set>
 #include <string>
 #include "Thrudoc.h"
@@ -24,7 +24,6 @@ class NBackend : public ThrudocPassthruBackend
                        const std::string * value);
 
     private:
-        static log4cxx::LoggerPtr logger;
 
         std::vector<boost::shared_ptr<ThrudocBackend> > backends;
 };

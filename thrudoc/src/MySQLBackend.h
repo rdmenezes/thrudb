@@ -5,14 +5,14 @@
 #ifndef _MYSQL_BACKEND_H_
 #define _MYSQL_BACKEND_H_
 
-#if HAVE_LIBMYSQLCLIENT_R
+#if HAVE_MYSQL
 
 #include "Thrudoc.h"
 #include "ThrudocBackend.h"
 #include "mysql_glue.h"
 
 #include <Hashing.h>
-#include <log4cxx/logger.h>
+
 #include <set>
 #include <string>
 
@@ -59,7 +59,6 @@ class MySQLBackend : public ThrudocBackend
              const std::string & current_databucket);
 
     private:
-        static log4cxx::LoggerPtr logger;
 
         mysql::ConnectionFactory * connection_factory;
         std::map<std::string, std::set<Partition*, bool(*)(Partition*, Partition*)>* >
@@ -85,6 +84,6 @@ class MySQLBackend : public ThrudocBackend
                                  const std::string & offset, int32_t count);
 };
 
-#endif /* HAVE_LIBMYSQLCLIENT_R */
+#endif /* HAVE_MYSQL */
 
 #endif

@@ -16,16 +16,25 @@ AC_PROG_MAKE_SET
 AC_LANG(C++)
 
 # thrift(nb) and related requirements
-AC_PATH_PROG(THRIFT, thrift, thrift, $PATH:/usr/local/bin:/usr/bin)
+AC_PATH_PROG(THRIFT, thrift, no, $PATH:/usr/local/bin:/usr/bin)
+if test "x$THRIFT" = "xno"; then                  
+   AC_MSG_ERROR([thrift is required; please install or specify path to thrift compiler])   
+fi
+
 PKG_CHECK_MODULES(THRIFT, [thrift],
                   AC_DEFINE([HAVE_THRIFT], [1], [Define to 1 if you have the thrift library (-lthrift)]))
 PKG_CHECK_MODULES(THRIFTNB, [thrift-nb], 
                   AC_DEFINE([HAVE_THRIFTNB], [1], [Define to 1 if you have the thriftnb library (-lthriftnb)]))
 
+AX_LIB_EVENT([1.1])
+if test "x$ax_have_libevent" != "xyes"; then
+AC_MSG_ERROR([libevent is required; please install development libraries])   
+fi
+
 # memcached
 AC_ARG_WITH(memcached,
     AC_HELP_STRING([--with-memcached],
-                   [build in BerkeleyDB backend support (default is yes]),
+                   [build in memcached backend support (default is yes]),
     [with_memcached=$withval],
     [with_memcached=yes])
 if test "$with_memcached" != "no"; then
@@ -33,30 +42,38 @@ if test "$with_memcached" != "no"; then
                       AC_DEFINE([HAVE_LIBMEMCACHED], [1], [Define to 1 if you have the libmemcached library (-lmemcached)]))
 fi
 
-# BerkeleyDB c++
-AC_ARG_WITH(bdb,
-    AC_HELP_STRING([--with-bdb],
-                   [build in BerkeleyDB backend support (default is yes]),
-    [with_bdb=$withval],
-    [with_bdb=yes])
-if test "$with_bdb" != "no"; then
-    AC_CHECK_LIB(db_cxx, [open], [],
-                 AC_MSG_ERROR([You must install db_cxx; please install libraries and development files]))
-    AC_CHECK_HEADERS([db_cxx.h],,
-                     AC_MSG_ERROR([db_cxx.h missing; please add db_cxx development files]))
-fi
 
+#BerkeleyDB
+AX_BDB_LIB()
+        
 # spread
 AC_ARG_WITH(spread,
     AC_HELP_STRING([--with-spread],
-                   [build in spread backend support (default is yes]),
+                   [build in spread backend support (default is no]),
     [with_spread=$withval],
     [with_spread=yes])
 if test "$with_spread" != "no"; then
-    AC_CHECK_LIB(spread, [open], [],
-                 AC_MSG_ERROR([You must install spread; please install libraries and development files]))
-    AC_CHECK_HEADERS([sp.h],,
-                     AC_MSG_ERROR([sp.h missing; please add spread development files]))
+    AC_LANG_PUSH([C])  
+
+    AC_MSG_CHECKING(Spread Version)  
+                                                                                                                                                                   
+    AC_TRY_RUN([
+#include <sp.h>
+#include <stdio.h>
+int main(void)
+{
+    int v = SPREAD_VERSION;
+    int p = ( (4 << 24) | ( 0 << 16) | 0 );
+	
+    printf("%d ",v);
+    if (v < p) //only use spread > 4.0.0
+        return 1;
+    return 0;
+}       
+],                                                                                                                                                            
+      [AC_MSG_RESULT(OK) AC_DEFINE(HAVE_LIBSPREAD,1,Define if new Spread API)],
+      [AC_MSG_RESULT(no)]  )   
+
 fi
 
 # s3
@@ -84,10 +101,7 @@ AC_ARG_WITH(mysql,
     [with_mysql=$withval],
     [with_mysql=yes])
 if test "$with_mysql" != "no"; then
-    AC_CHECK_LIB(mysqlclient_r, [open], [],
-                 AC_MSG_ERROR([You must install mysqlclient_r; please install libraries and development files]))
-    AC_CHECK_HEADERS([mysql/mysql.h],,
-                     AC_MSG_ERROR([mysql/mysql.h missing; please add mysqlclient_r development files]))
+   AX_LIB_MYSQL([4.0.0])
 fi
 
 # uuid
@@ -101,13 +115,13 @@ if test "$with_uuid" != "no"; then
                       AC_DEFINE([HAVE_LIBUUID], [1], [Define to 1 if you have the libuuid library (-luuid)]))
 fi
 
-# boost filesystem
+#boost
+AX_BOOST_BASE([1.33.1])
+
 if test "$with_disk" != "no" -o "$with_bdb" != "no"; then
-    AC_CHECK_LIB(boost_filesystem, [open], [],
-                 AC_MSG_ERROR([You must install boost_filesystem; please install libraries and development files]))
-    AC_CHECK_HEADERS([boost/filesystem/path.hpp],,
-                     AC_MSG_ERROR([boost/filesystem/path.hpp missing; please add db_cxx development files]))
+AX_BOOST_FILESYSTEM
 fi
+
 
 # ssl
 if test "$with_disk" != "no" -o "$with_s3" != "no"; then
@@ -125,16 +139,11 @@ fi
 AC_CHECK_HEADERS([poll.h],,
                  AC_MSG_ERROR([poll.h missing; please can not continue]))
 
-# log4cxx
-AC_CHECK_LIB(log4cxx, [open], [],
-             AC_MSG_ERROR([You must install log4cxx; please install libraries and development files]))
-AC_CHECK_HEADERS([log4cxx/logger.h],,
-                 AC_MSG_ERROR([log4cxx/logger.h missing; please add log4cxx development files]))
 
 # misc
 AC_C_CONST
 AC_CHECK_FUNCS([clock_gettime gettimeofday memset poll socket strcasecmp strchr strdup])
-AC_CHECK_HEADERS([netinet/in.h stdlib.h string.h sys/param.h])
+AC_CHECK_HEADERS([netinet/in.h stdlib.h string.h sys/param.h sys/time.h])
 AC_C_INLINE
 AC_FUNC_ALLOCA
 AC_FUNC_MALLOC

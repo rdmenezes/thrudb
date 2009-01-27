@@ -1,14 +1,12 @@
 #ifndef __CLUCENE_INDEX_H__
 #define __CLUCENE_INDEX_H__
 
-#include <log4cxx/logger.h>
-
 #include <boost/shared_ptr.hpp>
 
-#include <thrift/concurrency/Mutex.h>
-#include <thrift/concurrency/Monitor.h>
-#include <thrift/concurrency/ThreadManager.h>
-#include <thrift/concurrency/Util.h>
+#include <concurrency/Mutex.h>
+#include <concurrency/Monitor.h>
+#include <concurrency/ThreadManager.h>
+#include <concurrency/Util.h>
 
 #include <iostream>
 #include <stdexcept>
@@ -64,7 +62,6 @@ class CLuceneIndex : public facebook::thrift::concurrency::Runnable
     boost::shared_ptr<lucene::search::MultiSearcher>         getSearcher();
     boost::shared_ptr<facebook::thrift::concurrency::Thread> monitor_thread;
 
-    static log4cxx::LoggerPtr                        logger;
     facebook::thrift::concurrency::Mutex             mutex;
 
     const std::string                                index_root;

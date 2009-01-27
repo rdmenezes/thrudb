@@ -4,7 +4,6 @@
 #include "Thrudex.h"
 #include "ThrudexBackend.h"
 
-#include <log4cxx/logger.h>
 #include <boost/shared_ptr.hpp>
 
 class ThrudexHandler : virtual public thrudex::ThrudexIf
@@ -31,7 +30,6 @@ class ThrudexHandler : virtual public thrudex::ThrudexIf
     void admin(std::string &_return, const std::string &op, const std::string &data);
 
  private:
-    static log4cxx::LoggerPtr logger;
 
     boost::shared_ptr<ThrudexBackend> backend;
 

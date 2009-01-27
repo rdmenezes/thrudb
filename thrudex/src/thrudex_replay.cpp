@@ -30,11 +30,6 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/utility.hpp>
 
-#include <log4cxx/logger.h>
-#include <log4cxx/basicconfigurator.h>
-#include <log4cxx/propertyconfigurator.h>
-#include <log4cxx/helpers/exception.h>
-
 #include <EventLog.h>
 
 #include "app_helpers.h"
@@ -52,11 +47,8 @@ using namespace facebook::thrift::concurrency;
 using namespace facebook::thrift::protocol;
 using namespace facebook::thrift::server;
 using namespace facebook::thrift::transport;
-using namespace log4cxx;
-using namespace log4cxx::helpers;
-using namespace std;
 
-LoggerPtr logger (Logger::getLogger ("thrudex_replay"));
+using namespace std;
 
 //print usage and die
 inline void usage ()
@@ -71,12 +63,12 @@ class Replayer : public EventLogIf
 {
     public:
         Replayer (shared_ptr<ThrudexBackend> backend, string current_filename,
-                  uint32_t delay_seconds) 
+                  uint32_t delay_seconds)
         {
-            char buf[128];
-            sprintf (buf, "Replayer: current_filename=%s, delay_seconds=%d", 
+
+            T_DEBUG( "Replayer: current_filename=%s, delay_seconds=%d",
                      current_filename.c_str (), delay_seconds);
-            LOG4CXX_INFO (logger, buf);
+
 
             this->backend = backend;
             this->current_filename = current_filename;
@@ -94,36 +86,31 @@ class Replayer : public EventLogIf
             {
                 string last_position;
                 last_position = this->backend->admin ("get_log_position", "");
-                LOG4CXX_INFO (logger, "last_position=" + last_position);
+                T_DEBUG( "last_position=%s", last_position.c_str());
                 if (!last_position.empty ())
                 {
                     int index = last_position.find (":");
                     this->nextLog (last_position.substr (0, index));
-                    this->current_position = 
+                    this->current_position =
                         atol (last_position.substr (index + 1).c_str ());
                     // we have a last position
                 }
             }
             catch (ThrudexException e)
             {
-                LOG4CXX_WARN (logger, "last_position unknown, assuming epoch");
+                T_ERROR( "last_position unknown, assuming epoch");
             }
         }
 
         void log (const Event & event)
         {
-            if (logger->isDebugEnabled ())
-            {
-                char buf[1024];
-                sprintf (buf, "log: event.timestamp=%ld, event.msg=***", 
-                         event.timestamp);
-                LOG4CXX_DEBUG (logger, buf);
-            }
+            T_DEBUG( "log: event.timestamp=%ld, event.msg=***",
+                     event.timestamp);
 
             if (event.timestamp <= this->current_position)
             {
                 // we're already at or past this event
-                LOG4CXX_DEBUG (logger, "    skipping");
+                T_DEBUG ("    skipping");
                 return;
             }
 
@@ -132,18 +119,15 @@ class Replayer : public EventLogIf
             {
                 // we're supposed to be delaying, figure out when the event
                 // should happen
-                int32_t event_time = (event.timestamp / NS_PER_S) + 
+                int32_t event_time = (event.timestamp / NS_PER_S) +
                     this->delay_seconds;
                 // if that time is in the future
                 int32_t sleep_time = event_time - time (NULL);
                 if (sleep_time > 0)
                 {
-                    if (logger->isDebugEnabled ())
-                    {
-                        char buf[32];
-                        sprintf (buf, "log: delaying until: %d", event_time);
-                        LOG4CXX_DEBUG (logger, buf);
-                    }
+
+                    T_DEBUG( "log: delaying until: %d", event_time);
+
                     // sleep until it
                     sleep (sleep_time);
                 }
@@ -152,31 +136,28 @@ class Replayer : public EventLogIf
 
             // do these really have to be shared pointers?
             shared_ptr<TTransport> tbuf
-                (new TMemoryBuffer ((uint8_t*)event.message.c_str (), 
+                (new TMemoryBuffer ((uint8_t*)event.message.c_str (),
                                     event.message.length (),
                                     TMemoryBuffer::COPY));
             shared_ptr<TProtocol> prot = protocol_factory.getProtocol (tbuf);
 
-            try 
+            try
             {
                 processor->process(prot, prot);
-            } 
-            catch (TTransportException& ttx) 
+            }
+            catch (TTransportException& ttx)
             {
-                LOG4CXX_ERROR (logger, 
-                               string ("log: client transport error what=") +
-                               ttx.what ());
+                T_ERROR ("log: client transport error what=%s",ttx.what ());
                 throw ttx;
-            } 
-            catch (TException& x) 
+            }
+            catch (TException& x)
             {
-                LOG4CXX_ERROR (logger, string ("log: client error what=") +
-                               x.what ());
+                T_ERROR("log: client error what=%s",x.what ());
                 throw x;
-            } 
-            catch (...) 
+            }
+            catch (...)
             {
-                LOG4CXX_ERROR (logger, "log: client 'other' error");
+                T_ERROR ("log: client 'other' error");
                 throw;
             }
 
@@ -185,11 +166,12 @@ class Replayer : public EventLogIf
             // that many seconds in to the slave datastore
             if (time (NULL) > this->last_position_flush + 60)
             {
-                char buf[64];
-                sprintf (buf, "%s:%ld", get_current_filename ().c_str (), 
-                         event.timestamp);
-                LOG4CXX_DEBUG (logger, string ("log: flushing position=") +
-                               buf);
+                char buf[512];
+                sprintf(buf,"%s:%ld", get_current_filename ().c_str (),
+                        event.timestamp);
+
+                T_DEBUG( "log: flushing position=%s", buf);
+
                 this->backend->admin ("put_log_position", buf);
                 this->last_position_flush = time (NULL);
             }
@@ -200,7 +182,7 @@ class Replayer : public EventLogIf
 
         void nextLog (const string & next_filename)
         {
-            LOG4CXX_INFO (logger, "nextLog: next_filename=" + next_filename);
+            T_DEBUG("nextLog: next_filename=%s", next_filename.c_str());
             this->current_filename = next_filename;
         }
 
@@ -210,7 +192,7 @@ class Replayer : public EventLogIf
         }
 
     private:
-        static log4cxx::LoggerPtr logger;
+
 
         TBinaryProtocolFactory protocol_factory;
         shared_ptr<ThrudexBackend> backend;
@@ -221,7 +203,7 @@ class Replayer : public EventLogIf
         uint32_t delay_seconds;
 };
 
-LoggerPtr Replayer::logger (Logger::getLogger ("Replayer"));
+
 
 int main (int argc, char **argv)
 {
@@ -244,10 +226,9 @@ int main (int argc, char **argv)
 
     try
     {
-        PropertyConfigurator::configure (conf_file);
 
         string log_directory = argv[argc-1];
-        LOG4CXX_INFO (logger, "log_directory=" + log_directory);
+        T_DEBUG("log_directory=%s", log_directory.c_str());
 
         // open the log index file
         fstream index_file;
@@ -261,11 +242,11 @@ int main (int argc, char **argv)
             index_file.getline (buf, 64);
             log_filename = string (buf);
         }
-        else 
+        else
         {
             ThrudexException e;
             e.what = "error opening log index file";
-            LOG4CXX_ERROR (logger, e.what);
+            T_ERROR ( e.what.c_str());
             throw e;
         }
 
@@ -273,7 +254,7 @@ int main (int argc, char **argv)
         {
             ThrudexException e;
             e.what = "error log index file empty";
-            LOG4CXX_ERROR (logger, e.what);
+            T_ERROR (e.what.c_str());
             throw e;
         }
 
@@ -284,11 +265,11 @@ int main (int argc, char **argv)
         string which = ConfigManager->read<string> ("BACKEND", "mysql");
         shared_ptr<ThrudexBackend> backend = create_backend (which, 1);
 
-        int32_t delay_seconds = 
+        int32_t delay_seconds =
             ConfigManager->read<int32_t> ("REPLAY_DELAY_SECONDS", 0);
 
         // create our replayer with initial log_filename
-        boost::shared_ptr<Replayer> replayer (new Replayer (backend, 
+        boost::shared_ptr<Replayer> replayer (new Replayer (backend,
                                                             log_filename,
                                                             delay_seconds));
         // blank it out so we'll open things up... HACK
@@ -302,18 +283,18 @@ int main (int argc, char **argv)
             {
                 log_filename = replayer->get_current_filename ();
 
-                LOG4CXX_INFO (logger, "opening=" + log_directory + "/" + 
-                              log_filename);
+                T_DEBUG ( "opening=%s/%s", log_directory.c_str(),
+                          log_filename.c_str());
 
                 // we have to sleep for a little bit here to give the new file
                 // time to come in to existence to make sure we don't beat
                 // it...
                 sleep (1);
 
-                shared_ptr<ThruFileReaderTransport> 
+                shared_ptr<ThruFileReaderTransport>
                     rlog (new ThruFileReaderTransport (log_directory + "/" +
                                                        log_filename));
-                boost::shared_ptr<EventLogProcessor> 
+                boost::shared_ptr<EventLogProcessor>
                     proc (new EventLogProcessor (replayer));
                 shared_ptr<TProtocolFactory> pfactory (new TBinaryProtocolFactory ());
 

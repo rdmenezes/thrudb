@@ -5,10 +5,9 @@
 #ifndef _THRUDOC_BDB_BACKEND_H_
 #define _THRUDOC_BDB_BACKEND_H_
 
-#if HAVE_LIBDB_CXX && HAVE_LIBBOOST_FILESYSTEM
+#if HAVE_BERKELEYDB
 
 #include <string>
-#include <log4cxx/logger.h>
 #include <db_cxx.h>
 
 #include "Thrudoc.h"
@@ -34,7 +33,6 @@ class BDBBackend : public ThrudocBackend
                        const std::string * value);
 
     protected:
-        static log4cxx::LoggerPtr logger;
 
         std::string bdb_home;
         DbEnv * db_env;
@@ -43,6 +41,6 @@ class BDBBackend : public ThrudocBackend
         Db * get_db (const std::string & bucket);
 };
 
-#endif /* HAVE_LIBDB_CXX && HAVE_LIBBOOST_FILESYSTEM */
+#endif /* HAVE_BERKELEYDB */
 
 #endif

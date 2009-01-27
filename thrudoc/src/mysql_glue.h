@@ -1,12 +1,12 @@
 #ifndef _THRUDOC_MYSQL_GLUE_H_
 #define _THRUDOC_MYSQL_GLUE_H_
 
-#if HAVE_LIBMYSQLCLIENT_R
+#if HAVE_MYSQL
 
 #include <stdio.h>
 #include <string.h>
-#include <log4cxx/logger.h>
-#include <mysql/mysql.h>
+
+#include <mysql.h>
 #include <map>
 #include <stack>
 #include <concurrency/Mutex.h>
@@ -477,7 +477,7 @@ namespace mysql {
             BindResults * bind_results;
 
         private:
-            static log4cxx::LoggerPtr logger;
+
 
             void init (Connection * connection, const char * query,
                        bool writes, BindParams * bind_params,
@@ -538,7 +538,7 @@ namespace mysql {
         }
 
         private:
-        static log4cxx::LoggerPtr logger;
+
 
         std::string hostname;
         int port;
@@ -571,12 +571,12 @@ namespace mysql {
                                         const char * password);
 
         private:
-            static log4cxx::LoggerPtr logger;
+
 
             pthread_key_t connections_key;
     };
 
 }
-#endif /* HAVE_LIBMYSQLCLIENT_R */
+#endif /* HAVE_MYSQL */
 
 #endif

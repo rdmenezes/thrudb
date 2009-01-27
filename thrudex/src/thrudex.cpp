@@ -29,11 +29,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "log4cxx/logger.h"
-#include "log4cxx/basicconfigurator.h"
-#include "log4cxx/propertyconfigurator.h"
-#include "log4cxx/helpers/exception.h"
-
 #include "app_helpers.h"
 #include "ThrudexHandler.h"
 #include "ThrudexBackend.h"
@@ -42,8 +37,6 @@
 #include "ConfigFile.h"
 #include "utils.h"
 
-using namespace log4cxx;
-using namespace log4cxx::helpers;
 
 using namespace std;
 using namespace facebook::thrift;
@@ -54,7 +47,6 @@ using namespace facebook::thrift::server;
 using namespace thrudex;
 using namespace boost;
 
-LoggerPtr logger(Logger::getLogger("Thrudex"));
 
 //print usage and die
 inline void usage()
@@ -83,13 +75,11 @@ int main(int argc, char **argv) {
         //Read da config
         ConfigManager->readFile( conf_file );
 
-        PropertyConfigurator::configure(conf_file);
-
         int thread_count = ConfigManager->read<int>("THREAD_COUNT",3);
         int server_port  = ConfigManager->read<int>("SERVER_PORT",9099);
         string which = ConfigManager->read<string>("BACKEND","CLucene");
 
-        shared_ptr<ThrudexBackend> backend = create_backend (which, 
+        shared_ptr<ThrudexBackend> backend = create_backend (which,
                                                              thread_count);
 
         if (ConfigManager->read<int>("KEEP_STATS", 0))

@@ -14,16 +14,15 @@
 #include "utils.h"
 #include <stdexcept>
 
-#include <thrift/concurrency/ThreadManager.h>
-#include <thrift/concurrency/Mutex.h>
-#include <thrift/concurrency/PosixThreadFactory.h>
-#include <thrift/protocol/TBinaryProtocol.h>
-#include <thrift/transport/TTransportUtils.h>
+#include <concurrency/ThreadManager.h>
+#include <concurrency/Mutex.h>
+#include <concurrency/PosixThreadFactory.h>
+#include <protocol/TBinaryProtocol.h>
+#include <transport/TTransportUtils.h>
 
 using namespace std;
 using namespace boost;
 using namespace facebook::thrift;
-using namespace log4cxx;
 using namespace thruqueue;
 using namespace facebook::thrift::concurrency;
 using namespace facebook::thrift::transport;
@@ -32,7 +31,7 @@ using namespace facebook::thrift::protocol;
 
 _QueueManager* _QueueManager::pInstance = 0;
 Mutex          _QueueManager::_mutex    = Mutex();
-LoggerPtr      _QueueManager::logger(Logger::getLogger("QueueManager"));
+
 
 struct null_deleter
 {

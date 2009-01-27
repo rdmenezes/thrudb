@@ -2,7 +2,7 @@
 #include "thrudoc_config.h"
 #endif
 /* hack to work around thrift and log4cxx installing config.h's */
-#undef HAVE_CONFIG_H 
+#undef HAVE_CONFIG_H
 
 #include "app_helpers.h"
 #include "ConfigFile.h"
@@ -21,13 +21,13 @@
 #include "StatsBackend.h"
 #include "ThrudocBackend.h"
 
-#include <log4cxx/logger.h>
+#include "ThruLogging.h"
 
 using namespace boost;
 using namespace std;
-using namespace log4cxx;
 
-LoggerPtr logger (Logger::getLogger ("app_helpers"));
+
+
 
 vector<string> split (const string & str, const string & delimiters = " ")
 {
@@ -64,7 +64,7 @@ shared_ptr<ThrudocBackend> create_backend (string which, int thread_count)
             backends.push_back
                 (shared_ptr<ThrudocBackend>(new NullBackend ()));
         }
-#if HAVE_LIBDB_CXX
+#if HAVE_BERKELEYDB
         if ((*be) == "bdb")
         {
             // BDB backend
@@ -74,8 +74,7 @@ shared_ptr<ThrudocBackend> create_backend (string which, int thread_count)
                 (shared_ptr<ThrudocBackend>(new BDBBackend (bdb_home,
                                                             thread_count)));
         }
-#endif /* HAVE_LIBDB_CXX */
-#if HAVE_LIBBOOST_FILESYSTEM
+#endif /* HAVE_BERKELEYDB */
         if ((*be) == "disk")
         {
             // Disk backend
@@ -84,7 +83,6 @@ shared_ptr<ThrudocBackend> create_backend (string which, int thread_count)
             backends.push_back
                 (shared_ptr<ThrudocBackend>(new DiskBackend (doc_root)));
         }
-#endif /* HAVE_LIBBOOST_FILESYSTEM */
 #if HAVE_LIBEXPAT && HAVE_LIBCURL
         if ((*be) == "s3")
         {
@@ -104,7 +102,7 @@ shared_ptr<ThrudocBackend> create_backend (string which, int thread_count)
                 (shared_ptr<ThrudocBackend>(new S3Backend (bucket_prefix)));
         }
 #endif /* HAVE_LIBEXPAT && HAVE_LIBCURL */
-#if HAVE_LIBMYSQLCLIENT_R
+#if HAVE_MYSQL
         if ((*be) == "mysql")
         {
             // MySQL backend
@@ -134,17 +132,13 @@ shared_ptr<ThrudocBackend> create_backend (string which, int thread_count)
                                                    username, password,
                                                    max_value_size)));
         }
-#endif /* HAVE_LIBMYSQLCLIENT_R */
+#endif /* HAVE_MYSQL */
     }
 
     shared_ptr<ThrudocBackend> backend;
     if (backends.size () == 0)
     {
-        LOG4CXX_ERROR (logger, string ("unknown or unbuilt backend=") +
-                       which);
-        fprintf (stderr, "unknown or unbuilt backend=%s\n",
-                 which.c_str ());
-        exit (1);
+        T_ERROR_ABORT ("unknown or unbuilt backend=%s",which.c_str());
     }
     else if (backends.size () == 1)
     {
@@ -165,9 +159,7 @@ shared_ptr<ThrudocBackend> create_backend (string which, int thread_count)
 #else
     if (!memcached_servers.empty ())
     {
-        LOG4CXX_ERROR (logger, "MEMCACHED_SERVERS supplied, but memcached support not complied in");
-        fprintf (stderr, "MEMCACHED_SERVERS supplied, but memcached support not complied in\n");
-        exit (1);
+        T_ERROR_ABORT ("MEMCACHED_SERVERS supplied, but memcached support not complied in");
     }
 #endif /* HAVE_LIBMEMCACHED */
 
@@ -189,34 +181,30 @@ shared_ptr<ThrudocBackend> create_backend (string which, int thread_count)
                                 spread_group));
 
     string replication_name =
-        ConfigManager->read<string>("REPLICATION_NAME", "4803");
+       ConfigManager->read<string>("REPLICATION_NAME", "4803");
     string replication_group =
         ConfigManager->read<string>("REPLICATION_GROUP", "thrudoc");
     string replication_status_file =
-        ConfigManager->read<string>("REPLICATION_STATUS_FILE", 
+        ConfigManager->read<string>("REPLICATION_STATUS_FILE",
                                     "replication_status");
     int replication_status_flush_frequency =
         ConfigManager->read<int>("REPLICATION_STATUS_FLUSH_FREQUENCY", 30);
 
     if (!replication_private_name.empty ())
         backend = shared_ptr<ThrudocBackend>
-            (new ReplicationBackend (backend, replication_name, 
+            (new ReplicationBackend (backend, replication_name,
                                      replication_private_name,
-                                     replication_group, 
+                                     replication_group,
                                      replication_status_file,
                                      replication_status_flush_frequency));
 #else
     if (!spread_private_name.empty ())
     {
-        LOG4CXX_ERROR (logger, "SPREAD_PRIVATE_NAME supplied, but spread support not complied in");
-        fprintf (stderr, "SPREAD_PRIVATE_NAME supplied, but spread support not complied in\n");
-        exit (1);
+        T_ERROR_ABORT("SPREAD_PRIVATE_NAME supplied, but spread support not complied in");
     }
     if (!replication_private_name.empty ())
     {
-        LOG4CXX_ERROR (logger, "REPLICATION_PRIVATE_NAME supplied, but spread support not complied in");
-        fprintf (stderr, "REPLCATION_PRIVATE_NAME supplied, but spread support not complied in\n");
-        exit (1);
+        T_ERROR_ABORT("REPLICATION_PRIVATE_NAME supplied, but spread support not complied in");
     }
 #endif /* HAVE_LIBSPREAD */
 
@@ -227,7 +215,6 @@ shared_ptr<ThrudocBackend> create_backend (string which, int thread_count)
     if (ConfigManager->read<int>("KEEP_STATS", 0))
         backend = shared_ptr<ThrudocBackend> (new StatsBackend (backend));
 
-#if HAVE_LIBBOOST_FILESYSTEM
     // NOTE: logging should always be the outtermost backend
     string log_directory =
         ConfigManager->read<string>("LOG_DIRECTORY","");
@@ -240,7 +227,7 @@ shared_ptr<ThrudocBackend> create_backend (string which, int thread_count)
                                                               max_ops,
                                                               sync_wait));
     }
-#endif /* HAVE_LIBBOOST_FILESYSTEM */
+
 
     return backend;
 }

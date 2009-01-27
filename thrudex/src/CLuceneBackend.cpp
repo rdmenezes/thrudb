@@ -9,20 +9,18 @@
 #include "utils.h"
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
-#include <thrift/concurrency/Util.h>
+#include <concurrency/Util.h>
 
 namespace fs = boost::filesystem;
 using namespace boost;
 using namespace facebook::thrift::concurrency;
-using namespace log4cxx;
-using namespace thrudex;
 
-LoggerPtr CLuceneBackend::logger (Logger::getLogger ("CLuceneBackend"));
+using namespace thrudex;
 
 CLuceneBackend::CLuceneBackend(const string &idx_root)
     : idx_root(idx_root)
 {
-    LOG4CXX_INFO( logger, "CLuceneBackend: idx_root=" + idx_root );
+    T_DEBUG( "CLuceneBackend: idx_root=%s", idx_root.c_str() );
     //Verify log dir
     if(!directory_exists( idx_root )){
         fs::create_directories( idx_root );
@@ -43,7 +41,7 @@ CLuceneBackend::CLuceneBackend(const string &idx_root)
 
             this->addIndex( i->path().leaf() );
 
-            LOG4CXX_INFO(logger, "Added "+i->path().leaf() );
+            T_DEBUG( "Added %s",i->path().leaf().c_str() );
         }
     }
 }
@@ -63,7 +61,7 @@ bool CLuceneBackend::isValidIndex(const string &index)
 
 vector<string> CLuceneBackend::getIndices()
 {
-    LOG4CXX_DEBUG( logger, "getIndices:" );
+    T_DEBUG( "getIndices:" );
 
     RWGuard g(mutex);
 
@@ -80,7 +78,7 @@ vector<string> CLuceneBackend::getIndices()
 
 void CLuceneBackend::addIndex(const string &index)
 {
-    LOG4CXX_DEBUG( logger, "addIndex: index=" + index );
+    T_DEBUG( "addIndex: index=%s", index.c_str() );
 
     //Is index already loaded?
     if(this->isValidIndex(index))
@@ -95,7 +93,7 @@ void CLuceneBackend::addIndex(const string &index)
 
 void CLuceneBackend::put(const thrudex::Document &d)
 {
-    LOG4CXX_DEBUG( logger, "put: d.index=" + d.index + ", d.key=" + d.key );
+    T_DEBUG( "put: d.index=%s, d.key=%s", d.index.c_str(), d.key.c_str() );
 
     if(!this->isValidIndex( d.index )){
         ThrudexException ex;
@@ -119,20 +117,20 @@ void CLuceneBackend::put(const thrudex::Document &d)
 
         lucene::document::Field *f;
 
-	//add the document key
+        //add the document key
         f = lucene::document::Field::Keyword( DOC_KEY, doc_key.c_str() );
         doc->add(*f);
 
-	//check for payload
-	if( !d.payload.empty() ){
-	  f = lucene::document::Field::UnIndexed( DOC_PAYLOAD, build_wstring(d.payload).c_str() );
-	  doc->add(*f);
-	}
+        //check for payload
+        if( !d.payload.empty() ){
+          f = lucene::document::Field::UnIndexed( DOC_PAYLOAD, build_wstring(d.payload).c_str() );
+          doc->add(*f);
+        }
 
-	//populate the document
+        //populate the document
         for( unsigned int j=0; j<d.fields.size(); j++){
 
-            LOG4CXX_DEBUG(logger, d.fields[j].key+":"+d.fields[j].value);
+            T_DEBUG("%s:%s",d.fields[j].key.c_str(),d.fields[j].value.c_str());
 
             wstring key   = build_wstring( d.fields[j].key   );
             wstring value = build_wstring( d.fields[j].value );
@@ -140,13 +138,13 @@ void CLuceneBackend::put(const thrudex::Document &d)
 
             switch(d.fields[j].type){
                 case thrudex::KEYWORD:
-                    LOG4CXX_DEBUG(logger,"Keyword");
+                    T_DEBUG("Keyword");
                     f = lucene::document::Field::Keyword(key.c_str(),value.c_str());  break;
                 case thrudex::TEXT:
-                    LOG4CXX_DEBUG(logger,"Text");
+                    T_DEBUG("Text");
                     f = lucene::document::Field::Text(key.c_str(),value.c_str());     break;
                 default:
-                    LOG4CXX_DEBUG(logger,"UnStored");
+                    T_DEBUG("UnStored");
                     f = lucene::document::Field::UnStored(key.c_str(),value.c_str()); break;
             };
 
@@ -182,8 +180,7 @@ void CLuceneBackend::put(const thrudex::Document &d)
 
 void CLuceneBackend::remove(const thrudex::Element &el)
 {
-    LOG4CXX_DEBUG( logger, "remove: el.index=" + el.index + ", el.key=" +
-                   el.key );
+    T_DEBUG( "remove: el.index=%s, el.key", el.index.c_str(), el.key.c_str() );
 
     if(!this->isValidIndex( el.index )){
         ThrudexException ex;
@@ -198,8 +195,7 @@ void CLuceneBackend::remove(const thrudex::Element &el)
 
 void CLuceneBackend::search(const thrudex::SearchQuery &q, thrudex::SearchResponse &r)
 {
-    LOG4CXX_DEBUG( logger, "search: q.index=" + q.index + ", q.query=" +
-                   q.query );
+    T_DEBUG( "search: q.index=%s, q.query=%s", q.index.c_str(), q.query.c_str() );
 
     if(!this->isValidIndex( q.index )){
         ThrudexException ex;
@@ -214,7 +210,7 @@ void CLuceneBackend::search(const thrudex::SearchQuery &q, thrudex::SearchRespon
 
 string CLuceneBackend::admin(const std::string &op, const std::string &data)
 {
-    LOG4CXX_DEBUG( logger, "admin: op=" + op + ", data=" + data );
+    T_DEBUG( "admin: op=%s, data=%s", op.c_str(), data.c_str() );
 
     string log_pos_file = idx_root + "/thrudex.state";
 
@@ -241,7 +237,7 @@ string CLuceneBackend::admin(const std::string &op, const std::string &data)
 
         }
 
-        LOG4CXX_INFO(logger, "Creating index:"+name);
+        T_DEBUG( "Creating index:%s",name.c_str());
         this->addIndex(name);
 
         return "ok";
@@ -253,7 +249,7 @@ string CLuceneBackend::admin(const std::string &op, const std::string &data)
         {
             ThrudexException e;
             e.what = "can't open log posotion file=" + log_pos_file;
-            LOG4CXX_ERROR( logger, e.what);
+            T_ERROR( e.what.c_str());
             throw e;
         }
         outfile.write (data.data (), data.size ());
@@ -266,7 +262,7 @@ string CLuceneBackend::admin(const std::string &op, const std::string &data)
         {
             ThrudexException e;
             e.what = "can't open log posotion file=" + log_pos_file;
-            LOG4CXX_ERROR( logger, e.what);
+            T_ERROR( e.what.c_str());
             throw e;
         }
         fs::ifstream::pos_type size = infile.tellg ();

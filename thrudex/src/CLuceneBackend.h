@@ -3,13 +3,11 @@
 
 #include "ThrudexBackend.h"
 
-#include <log4cxx/logger.h>
-
 #include <boost/shared_ptr.hpp>
 
-#include <thrift/concurrency/Mutex.h>
-#include <thrift/concurrency/Monitor.h>
-#include <thrift/concurrency/Util.h>
+#include <concurrency/Mutex.h>
+#include <concurrency/Monitor.h>
+#include <concurrency/Util.h>
 
 #include <iostream>
 #include <stdexcept>
@@ -34,8 +32,6 @@ class CLuceneBackend : public ThrudexBackend
     std::string admin(const std::string &op, const std::string &data);
 
  private:
-
-    static log4cxx::LoggerPtr logger;
 
     void  addIndex     (const std::string &index);
     bool  isValidIndex (const std::string &index);

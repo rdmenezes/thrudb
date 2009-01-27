@@ -22,18 +22,21 @@ libthrudex_la_SOURCES = \
 		  StatsBackend.cpp			\
 		  UpdateFilter.cpp
 
-thrudex_SOURCES = \
-		  thrudex.cpp
-
-
-AM_CPPFLAGS = -Wall -Igen-cpp $(MEMCACHED_CFLAGS) $(CURL_CFLAGS) $(THRIFTNB_CFLAGS) -I../../thrucommon/src -I../../thrucommon/src/gen-cpp $(SSL_CFLAGS) $(UUID_CFLAGS) $(BOOST_CPPFLAGS)
-AM_LDFLAGS = -Wall $(CURL_LIBS) $(THRIFTNB_LIBS) $(SSL_LIBS) $(UUID_LIBS) -levent -lclucene $(BOOST_LDFLAGS) $(BOOST_FILESYSTEM_LIB)
+libthrudex_la_CPPFLAGS=-Wall -Igen-cpp $(THRIFTNB_CFLAGS) -I../../thrucommon/src -I../../thrucommon/src/gen-cpp  $(UUID_CFLAGS) $(BOOST_CPPFLAGS) $(CLUCENE_CPPFLAGS)
+libthrudex_la_LDFLAGS = -Wall $(THRIFTNB_LIBS) $(UUID_LIBS) $(BOOST_LDFLAGS) $(BOOST_FILESYSTEM_LIB) $(CLUCENE_LDFLAGS) $(LIBEVENT_LDFLAGS) $(LIBEVENT_LIBS)
 
 LDADD = $(top_builddir)/src/libthrudex.la ../../thrucommon/src/libthrucommon.la
 
+thrudex_SOURCES = \
+		  thrudex.cpp
+thrudex_CPPFLAGS = -Wall -Igen-cpp $(THRIFTNB_CFLAGS) -I../../thrucommon/src -I../../thrucommon/src/gen-cpp  $(UUID_CFLAGS) $(BOOST_CPPFLAGS) $(CLUCENE_CPPFLAGS)
+thrudex_LDFLAGS = -Wall $(THRIFTNB_LIBS) $(UUID_LIBS) $(BOOST_LDFLAGS) $(BOOST_FILESYSTEM_LIB) $(CLUCENE_LDFLAGS) -lboost_system-mt
+thrudex_LDADD = $(LDADD)
+
+
 thrudex_replay_CPPFLAGS = -Wall -Igen-cpp $(CURL_CFLAGS) $(MEMCACHED_CFLAGS) $(THRIFTNB_CFLAGS) -I../../thrucommon/src -I../../thrucommon/src/gen-cpp $(SSL_CFLAGS) $(UUID_CFLAGS)  $(BOOST_CPPFLAGS)
 thrudex_replay_LDADD = $(LDADD)
-thrudex_replay_LDFLAGS = -Wall -rpath $(pkglibdir) $(CURL_LIBS) $(MEMCACHED_LIBS) $(THRIFTNB_LIBS) $(SSL_LIBS) $(UUID_LIBS) $(BOOST_LDFLAGS) $(BOOST_FILESYSTEM_LIB)
+thrudex_replay_LDFLAGS = -Wall -rpath $(pkglibdir) $(THRIFTNB_LIBS) $(SSL_LIBS) $(UUID_LIBS) $(BOOST_LDFLAGS) $(BOOST_FILESYSTEM_LIB) -lboost_system-mt 
 thrudex_replay_SOURCES = \
 		  thrudex_replay.cpp
 

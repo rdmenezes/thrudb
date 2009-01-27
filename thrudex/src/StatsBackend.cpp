@@ -1,11 +1,8 @@
 #include "StatsBackend.h"
 
 using namespace boost;
-using namespace log4cxx;
 using namespace std;
 using namespace thrudex;
-
-LoggerPtr StatsBackend::logger (Logger::getLogger ("StatsBackend"));
 
 StatsBackend::StatsBackend(shared_ptr<ThrudexBackend> backend) :
   getIndices_count (0),
@@ -17,7 +14,7 @@ StatsBackend::StatsBackend(shared_ptr<ThrudexBackend> backend) :
   searchList_count (0),
   admin_count (0)
 {
-  LOG4CXX_INFO (logger, "StatsBackend");
+  T_DEBUG ( "StatsBackend");
 
   this->set_backend (backend);
 }
@@ -71,7 +68,7 @@ string StatsBackend::admin(const string &op, const string &data)
     char buf[1024];
     // casts are require to prevent POD type problems with atomic_count
     sprintf (buf, "getIndices_count=%lu,put_count=%lu,remove_count=%lu,search_count=%lu,putList_count=%lu,removeList_count=%lu,searchList=%lu,admin=%lu",
-             (long)getIndices_count, (long)put_count, (long)remove_count, 
+             (long)getIndices_count, (long)put_count, (long)remove_count,
              (long)search_count, (long)putList_count, (long)removeList_count,
              (long)searchList_count, (long)admin_count);
     return string (buf);

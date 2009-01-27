@@ -14,12 +14,12 @@
 #include <set>
 #include <string>
 #include <deque>
-#include <log4cxx/logger.h>
-#include <thrift/concurrency/Thread.h>
-#include <thrift/concurrency/Mutex.h>
-#include <thrift/concurrency/Monitor.h>
-#include <thrift/transport/TFileTransport.h>
-#include <thrift/transport/TTransportUtils.h>
+
+#include <concurrency/Thread.h>
+#include <concurrency/Mutex.h>
+#include <concurrency/Monitor.h>
+#include <transport/TFileTransport.h>
+#include <transport/TTransportUtils.h>
 
 #include "Thruqueue.h"
 #include "Thruqueue_types.h"
@@ -70,7 +70,6 @@ class Queue
 
 
     unsigned int                msg_buffer_size;
-    static log4cxx::LoggerPtr   logger;
 };
 
 #endif

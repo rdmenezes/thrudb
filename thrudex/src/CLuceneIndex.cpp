@@ -6,15 +6,16 @@
 
 #include "CLuceneIndex.h"
 #include "utils.h"
-#include <thrift/concurrency/Util.h>
-#include <thrift/concurrency/PosixThreadFactory.h>
+#include <concurrency/Util.h>
+#include <concurrency/PosixThreadFactory.h>
 
 #include "bloom_filter.hpp"
 #include "UpdateFilter.h"
+#include "ThruLogging.h"
 
 using namespace thrudex;
 
-using namespace log4cxx;
+
 using namespace boost;
 using namespace facebook::thrift::concurrency;
 
@@ -26,7 +27,6 @@ using namespace lucene::util;
 using namespace lucene::queryParser;
 using namespace lucene::document;
 
-LoggerPtr CLuceneIndex::logger (Logger::getLogger ("CLuceneIndex"));
 
 //Used to spawn monitor thread
 struct null_deleter
@@ -51,7 +51,7 @@ CLuceneIndex::CLuceneIndex(const string &index_root, const string &index_name, c
 
     //Verify log dir
     if(!directory_exists( index_root )){
-        LOG4CXX_ERROR(logger,"Invalid index root: "+index_root);
+        T_ERROR("Invalid index root: %s",index_root.c_str());
         throw runtime_error("Invalid index root: "+index_root);
     }
 
@@ -78,7 +78,7 @@ CLuceneIndex::CLuceneIndex(const string &index_root, const string &index_name, c
             w.close();
 
             new_index = true;
-            LOG4CXX_INFO(logger,"Created index :"+index_name);
+            T_DEBUG("Created index :%s",index_name.c_str());
         }
 
 
@@ -97,7 +97,7 @@ CLuceneIndex::CLuceneIndex(const string &index_root, const string &index_name, c
 
                 STRCPY_TtoA(buf,id,1024);
 
-                LOG4CXX_DEBUG(logger,"blooming index id: "+index_name+"("+string(buf)+")");
+                T_DEBUG(logger,"blooming index id: %s(%s)",index_name.c_str(),buf);
 
                 disk_bloom->insert(buf);
             }
@@ -126,13 +126,13 @@ CLuceneIndex::CLuceneIndex(const string &index_root, const string &index_name, c
 
 
     } catch(CLuceneError &e) {
-        LOG4CXX_ERROR(logger,"Clucene Exception while creating index:" + idx_path +" : "+e.what());
+        T_ERROR("Clucene Exception while creating index:%s : %s", idx_path.c_str(),e.what());
         ThrudexException ex;
         ex.what = "Clucene Exception while creating index:" + idx_path +" : "+e.what();
 
         throw ex;
     } catch(...) {
-        LOG4CXX_ERROR(logger,"Unknown exception while creating index:" + idx_path);
+        T_ERROR("Unknown exception while creating index:%s", idx_path.c_str());
 
         ThrudexException ex;
         ex.what = "Unknown exception while creating index:" + idx_path;
@@ -199,7 +199,7 @@ shared_ptr<MultiSearcher> CLuceneIndex::getSearcher()
 
         last_refresh = Util::currentTime();
 
-        LOG4CXX_DEBUG(logger,"Created new searcher");
+        T_DEBUG("Created new searcher");
     }
 
     return searcher;
@@ -234,7 +234,7 @@ void CLuceneIndex::put( const string &key, lucene::document::Document *doc )
         Term *t = new Term(DOC_KEY, wkey.c_str() );
 
         l_modifier->deleteDocuments(t);
-        LOG4CXX_DEBUG(logger,"Updating "+key);
+        T_DEBUG(logger,"Updating %s",key.c_str());
 
         delete t;
     }
@@ -270,7 +270,7 @@ void CLuceneIndex::remove(const string &key)
     //Since we don't want to write to disk
     //We'll simply track the docs to remove on next merge
     if( l_disk_bloom->contains( key )){
-        LOG4CXX_DEBUG(logger, "Removed disk"+key);
+        T_DEBUG("Removed disk %s",key.c_str());
         l_disk_deletes->insert( key );
 
         if(!syncing)
@@ -282,7 +282,7 @@ void CLuceneIndex::remove(const string &key)
     //remove from memory if residing there
     if(l_ram_bloom->contains( key )){
 
-        LOG4CXX_DEBUG(logger, "Removed ram"+key);
+        T_DEBUG( "Removed ram %s",key.c_str());
 
         Term      *t = new Term(DOC_KEY, wkey.c_str() );
 
@@ -300,7 +300,7 @@ void CLuceneIndex::remove(const string &key)
 void CLuceneIndex::search(const thrudex::SearchQuery &q, thrudex::SearchResponse &r)
 {
 
-    LOG4CXX_DEBUG(logger,"Searching in: ("+q.index+")");
+    T_DEBUG("Searching in: (%s)",q.index.c_str());
 
 
     if( q.query.empty() ){
@@ -343,7 +343,7 @@ void CLuceneIndex::search(const thrudex::SearchQuery &q, thrudex::SearchResponse
 
     try{
 
-        LOG4CXX_DEBUG(logger,q.query);
+        T_DEBUG(q.query);
 
         wstring wquery = build_wstring(q.query);
 
@@ -381,7 +381,7 @@ void CLuceneIndex::search(const thrudex::SearchQuery &q, thrudex::SearchResponse
     } else {
 
 
-        LOG4CXX_DEBUG(logger,"Sorting by: "+q.sortby+" "+(q.desc ? "Descending": ""));
+        T_DEBUG("Sorting by: %s %s",q.sortby.c_str(),(q.desc ? "Descending": ""));
 
         wstring  sortby   = build_wstring( q.sortby+"_sort" );
 
@@ -392,7 +392,7 @@ void CLuceneIndex::search(const thrudex::SearchQuery &q, thrudex::SearchResponse
             h = l_searcher->search(query,l_disk_filter.get(),lsort);
         } catch(CLuceneError &e) {
 
-            LOG4CXX_WARN(logger, "Sort failed, falling back on regular search");
+            T_INFO( "Sort failed, falling back on regular search");
             h = l_searcher->search(query,l_disk_filter.get());
         }
     }
@@ -428,19 +428,19 @@ void CLuceneIndex::search(const thrudex::SearchQuery &q, thrudex::SearchResponse
 
                     STRCPY_TtoA(buf,id,1024);
 
-                    LOG4CXX_DEBUG(logger,"ID: "+string(buf));
+                    T_DEBUG("ID: %s",buf);
 
                     thrudex::Element el;
                     el.index = q.index;
                     el.key   = buf;
-		    
-		    if(q.payload){
-		      const wchar_t *payload = doc->get(DOC_PAYLOAD);
-		      if(payload != NULL){
-			STRCPY_TtoA(buf,payload,1024);
-			el.payload = buf;
-		      }
-		    }
+
+                    if(q.payload){
+                      const wchar_t *payload = doc->get(DOC_PAYLOAD);
+                      if(payload != NULL){
+                        STRCPY_TtoA(buf,payload,1024);
+                        el.payload = buf;
+                      }
+                    }
 
                     r.elements.push_back(el);
 
@@ -462,19 +462,19 @@ void CLuceneIndex::search(const thrudex::SearchQuery &q, thrudex::SearchResponse
                 } else {
                     STRCPY_TtoA(buf,id,1024);
 
-                    LOG4CXX_DEBUG(logger,"ID: "+string(buf));
+                    T_DEBUG("ID: %s",buf);
 
                     thrudex::Element el;
                     el.index = q.index;
                     el.key   = buf;
 
-		    if(q.payload){
-		      const wchar_t *payload = doc->get(DOC_PAYLOAD);
-		      if(payload != NULL){
-			STRCPY_TtoA(buf,payload,1024);
-			el.payload = string(buf);
-		      }
-		    }
+                    if(q.payload){
+                      const wchar_t *payload = doc->get(DOC_PAYLOAD);
+                      if(payload != NULL){
+                        STRCPY_TtoA(buf,payload,1024);
+                        el.payload = string(buf);
+                      }
+                    }
 
                     r.elements.push_back(el);
                 }
@@ -494,9 +494,9 @@ void CLuceneIndex::run()
 
     while(1){
         sleep(10);
-        LOG4CXX_DEBUG(logger,"Syncing");
+        T_DEBUG("Syncing");
         sync();
-        LOG4CXX_DEBUG(logger,"Syncing Finished");
+        T_DEBUG("Syncing Finished");
     }
 
 }
@@ -511,7 +511,7 @@ void CLuceneIndex::sync()
             return;
     }
 
-    LOG4CXX_DEBUG(logger,"Syncing Started");
+    T_DEBUG("Syncing Started");
     string idx_path = index_root + "/" + index_name;
 
     shared_ptr<IndexModifier>       l_ram_modifier;
@@ -555,7 +555,7 @@ void CLuceneIndex::sync()
         disk_deletes.reset(new set<string>());
     }
 
-    LOG4CXX_DEBUG(logger,"Created Handles");
+    T_DEBUG("Created Handles");
 
     {
         //Now we start by deleting any updated docs from disk
@@ -570,7 +570,7 @@ void CLuceneIndex::sync()
 
             tmp_disk_reader->deleteDocuments(t);
 
-            LOG4CXX_DEBUG(logger,"Deleted"+(*it));
+            T_DEBUG("Deleted %s",(*it).c_str());
 
             delete t;
             i++;
@@ -578,7 +578,7 @@ void CLuceneIndex::sync()
 
         tmp_disk_reader->close();
 
-        LOG4CXX_DEBUG(logger,"Deleted old ids");
+        T_DEBUG("Deleted old ids");
     }
 
 
@@ -599,7 +599,7 @@ void CLuceneIndex::sync()
         *l_disk_bloom.get() |= *l_ram_bloom.get();
 
 
-        LOG4CXX_DEBUG(logger,"Merged");
+        T_DEBUG("Merged");
     }
 
     //Search new index (big perf hit so get it over now)
@@ -614,7 +614,7 @@ void CLuceneIndex::sync()
     _CLDELETE(h);
     _CLDELETE(query);
 
-    LOG4CXX_DEBUG(logger,"Query");
+    T_DEBUG("Query");
 
     //replace index handles
     {
@@ -633,7 +633,7 @@ void CLuceneIndex::sync()
         for( it=disk_deletes->begin(); it!=disk_deletes->end(); ++it){
             wstring wkey = build_wstring(*it);
 
-            LOG4CXX_DEBUG(logger,"Skipping sync:"+*it);
+            T_DEBUG("Skipping sync:%s",(*it).c_str());
             disk_filter->skip(wkey);
         }
 
@@ -644,5 +644,5 @@ void CLuceneIndex::sync()
 
     }
 
-    LOG4CXX_DEBUG(logger,"Set new search");
+    T_DEBUG("Set new search");
 }

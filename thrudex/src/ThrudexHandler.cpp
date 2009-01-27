@@ -7,12 +7,12 @@
 
 #include "ThrudexHandler.h"
 
+
 using namespace std;
 using namespace boost;
 using namespace thrudex;
-using namespace log4cxx;
 
-LoggerPtr ThrudexHandler::logger (Logger::getLogger ("ThrudexHandler"));
+
 
 ThrudexHandler::ThrudexHandler(shared_ptr<ThrudexBackend> backend)
 {

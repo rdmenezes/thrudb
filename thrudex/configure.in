@@ -15,44 +15,83 @@ AC_PROG_MAKE_SET
 
 AC_LANG(C++)
 
-# work around for CLucene weirdness on debian systems
-CXXFLAGS="-I/usr/lib $CXXFLAGS"
+dnl
+dnl  Look for clucene
+dnl 
+AC_ARG_WITH(clucene,
+    [  --with-clucene[=PATH] directory where clucene exists],
+    CLUCENE_DIR=$with_clucene,
+    CLUCENE_DIR=default)
 
-# CLucene
-AC_CHECK_LIB(clucene, [open], [],
-             AC_MSG_ERROR([You must install CLucene; please install libraries and development files]))
-AC_CHECK_HEADERS([CLucene.h],,
-                 AC_MSG_ERROR([CLucene.h missing; please add CLucene development files]))
+
+if test "x$CLUCENE_DIR" = "xno" ; then
+    AC_MSG_ERROR(Clucene is required for thrudex)
+else
+    if test "x$CLUCENE_DIR" = "xdefault" ; then
+            for d in $prefix /opt /opt/local /usr/local /usr; do
+		if test -d "$d/include/CLucene"; then
+		   CLUCENE_DIR=$d
+		   CLUCENE_CPPFLAGS="-I$d/include/ -I$d/lib/"
+		   CLUCENE_LDFLAGS="-L$d/lib -lclucene"
+		fi
+            done
+    else
+         CLUCENE_CPPFLAGS="-I$CLUCENE_DIR/include/ -I$CLUCENE_DIR/lib/"
+         CLUCENE_LDFLAGS="-L$CLUCENE_DIR/lib -lclucene"   
+    fi
+
+
+CLUCENE_SAVE_LDFLAGS=$LDFLAGS
+CLUCENE_SAVE_CPPFLAGS=$CPPFLAGS
+LDFLAGS="$LDFLAGS $CLUCENE_LDFLAGS"
+CPPFLAGS="$CPPFLAGS $CLUCENE_CPPFLAGS"
+
+AC_LANG_PUSH([C++])
+AC_MSG_CHECKING(for clucene location in $CLUCENE_DIR)
+AC_MSG_CHECKING(CLucene version >= 0.9.20)
+AC_TRY_RUN(
+       [
+#include <CLucene.h>
+#include <stdio.h>
+int main(void) 
+{
+    printf(_CL_VERSION);
+    int maj, min, ver;
+    sscanf(_CL_VERSION,"%d%*s%d%*s%d",&maj,&min,&ver);
+    if (maj == 0 && min == 9 && ver >= 20) 
+        return 1;
+    return 0;
+}
+       ],
+       [AC_MSG_RESULT(OK)],
+       [AC_MSG_ERROR(Clucene is required for thrudex2) ]
+    )
+
+    AC_SUBST(CLUCENE_CPPFLAGS)
+    AC_SUBST(CLUCENE_LDFLAGS)
+
+    LDFLAGS=$CLUCENE_SAVE_LDFLAGS
+    CPPFLAGS=$CLUCENE_SAVE_CPPFLAGS
+
+fi
+
+
+
 
 # thrift(nb) and related requirements
-AC_PATH_PROG(THRIFT, thrift, thrift, $PATH:/usr/local/bin:/usr/bin)
+AC_PATH_PROG(THRIFT, thrift, no, $PATH:/usr/local/bin:/usr/bin)
+if test "x$THRIFT" = "xno"; then                  
+   AC_MSG_ERROR([thrift is required; please install or specify path to thrift compiler])   
+fi
+
 PKG_CHECK_MODULES(THRIFTNB, [thrift-nb], 
                   AC_DEFINE([HAVE_THRIFTNB], [1], [Define to 1 if you have the thriftnb library (-lthriftnb)]))
 
-# memcached
-AC_ARG_WITH(memcached,
-    AC_HELP_STRING([--with-memcached],
-                   [build in BerkeleyDB backend support (default is yes]),
-    [with_memcached=$withval],
-    [with_memcached=yes])
-if test "$with_memcached" != "no"; then
-    PKG_CHECK_MODULES(MEMCACHED, [libmemcached >= 0.14],
-                      AC_DEFINE([HAVE_LIBMEMCACHED], [1], [Define to 1 if you have the libmemcached library (-lmemcached)]))
-fi
 
-# spread
-AC_ARG_WITH(spread,
-    AC_HELP_STRING([--with-spread],
-                   [build in spread backend support (default is yes]),
-    [with_spread=$withval],
-    [with_spread=yes])
-if test "$with_spread" != "no"; then
-    AC_CHECK_LIB(spread, [open], [],
-                 AC_MSG_ERROR([You must install spread; please install libraries and development files]))
-    AC_CHECK_HEADERS([sp.h],,
-                     AC_MSG_ERROR([sp.h missing; please add spread development files]))
+AX_LIB_EVENT([1.1])
+if test "x$ax_have_libevent" != "xyes"; then
+AC_MSG_ERROR([libevent is required; please install development libraries])   
 fi
-
 
 # boost filesystem
 AX_BOOST_BASE([1.33.1])
@@ -61,11 +100,6 @@ if test "$with_disk" != "no" -o "$with_bdb" != "no"; then
 AX_BOOST_FILESYSTEM
 fi
 
-# log4cxx
-AC_CHECK_LIB(log4cxx, [open], [],
-             AC_MSG_ERROR([You must install log4cxx; please install libraries and development files]))
-AC_CHECK_HEADERS([log4cxx/logger.h],,
-                 AC_MSG_ERROR([log4cxx/logger.h missing; please add log4cxx development files]))
 
 # misc
 AC_C_CONST
@@ -83,5 +117,6 @@ AC_TYPE_UINT32_T
 AC_TYPE_UINT8_T
 
 AC_CONFIG_FILES([Makefile
-                 src/Makefile])
+                 src/Makefile
+		 src/thrudex.pc])
 AC_OUTPUT

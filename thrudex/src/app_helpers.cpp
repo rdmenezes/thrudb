@@ -2,7 +2,7 @@
 #include "thrudex_config.h"
 #endif
 /* hack to work around thrift and log4cxx installing config.h's */
-#undef HAVE_CONFIG_H 
+#undef HAVE_CONFIG_H
 
 #include "app_helpers.h"
 #include "ConfigFile.h"
@@ -12,26 +12,21 @@
 #include "ThrudexBackend.h"
 
 #include <boost/shared_ptr.hpp>
-#include <log4cxx/logger.h>
 
 using namespace boost;
 using namespace std;
-using namespace log4cxx;
 
-LoggerPtr logger (Logger::getLogger ("app_helpers"));
-
-shared_ptr<ThrudexBackend> create_backend (string /* which */, 
+shared_ptr<ThrudexBackend> create_backend (string /* which */,
                                            int /* thread_count */)
 {
     string index_root   = ConfigManager->read<string>("INDEX_ROOT");
 
     setlocale(LC_CTYPE, "en_US.utf8");  //unicode support
 
-    LOG4CXX_INFO(logger, "Starting up");
+    T_DEBUG("Starting up");
 
     shared_ptr<ThrudexBackend> backend(new CLuceneBackend(index_root));
 
-#if HAVE_LIBBOOST_FILESYSTEM
     // NOTE: logging should always be the outtermost backend
     string log_directory =
         ConfigManager->read<string>("LOG_DIRECTORY","");
@@ -44,7 +39,7 @@ shared_ptr<ThrudexBackend> create_backend (string /* which */,
                                                               max_ops,
                                                               sync_wait));
     }
-#endif /* HAVE_LIBBOOST_FILESYSTEM */
+
 
     return backend;
 }

@@ -2,15 +2,16 @@
 #ifndef _MYFILETRANSPORT_H_
 #define _MYFILETRANSPORT_H_ 1
 
+#include "concurrency/Mutex.h"
 #include "transport/TTransport.h"
 #include "Thrift.h"
 #include "TProcessor.h"
 
 #include <boost/shared_ptr.hpp>
-#include <log4cxx/logger.h>
+
 #include <stdio.h>
 #include <string>
-#include <thrift/concurrency/Mutex.h>
+
 
 class ThruFileReaderTransport : public facebook::thrift::transport::TTransport
 {
@@ -21,8 +22,6 @@ class ThruFileReaderTransport : public facebook::thrift::transport::TTransport
         uint32_t read(uint8_t* buf, uint32_t len) ;
 
     private:
-        static log4cxx::LoggerPtr logger;
-
         std::string path;
         int fd;
 };
@@ -39,7 +38,6 @@ class ThruFileWriterTransport : public facebook::thrift::transport::TTransport
         void write(const uint8_t* buf, uint32_t len);
 
     private:
-        static log4cxx::LoggerPtr logger;
 
         std::string path;
         int fd;
@@ -51,12 +49,12 @@ class ThruFileWriterTransport : public facebook::thrift::transport::TTransport
         void fsync_thread_run ();
 };
 
-class ThruFileProcessor 
+class ThruFileProcessor
 {
     public:
-        /** 
+        /**
          * Constructor that defaults output transport to null transport
-         * 
+         *
          * @param processor processes log-file events
          * @param protocolFactory protocol factory
          * @param inputTransport file transport
@@ -70,14 +68,14 @@ class ThruFileProcessor
                         boost::shared_ptr<facebook::thrift::protocol::TProtocolFactory> outputProtocolFactory,
                         boost::shared_ptr<ThruFileReaderTransport> inputTransport);
 
-        /** 
+        /**
          * Constructor
-         * 
+         *
          * @param processor processes log-file events
          * @param protocolFactory protocol factory
          * @param inputTransport input file transport
          * @param output output transport
-         */    
+         */
         ThruFileProcessor(boost::shared_ptr<facebook::thrift::TProcessor> processor,
                         boost::shared_ptr<facebook::thrift::protocol::TProtocolFactory> protocolFactory,
                         boost::shared_ptr<ThruFileReaderTransport> inputTransport,
@@ -92,7 +90,6 @@ class ThruFileProcessor
         void process(uint32_t numEvents);
 
     private:
-        static log4cxx::LoggerPtr logger;
 
         boost::shared_ptr<facebook::thrift::TProcessor> processor_;
         boost::shared_ptr<facebook::thrift::protocol::TProtocolFactory> inputProtocolFactory_;
