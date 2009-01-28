@@ -37,13 +37,13 @@ libthrucommon_la_SOURCES = \
 			   ThruFileTransport.cpp
 
 libthrucommon_la_CPPFLAGS = -Wall -Igen-cpp $(MEMCACHED_CFLAGS) $(SPREAD_CFLAGS) $(SSL_CFLAGS) $(THRIFT_CFLAGS) $(UUID_CFLAGS) $(BOOST_CPPFLAGS)
-libthrucommon_la_LDFLAGS = -Wall $(SPREAD_LIBS) $(SSL_LIBS) $(THRIFT_LIBS) $(UUID_LIBS) $(MEMCACHED_LIBS) $(BOOST_LDFLAGS) $(LIBEVENT_LDFLAGS) $(LIBEVENT_LIBS) $(BOOST_FILESYSTEM_LIB)  $(BOOST_SYSTEM_LIB)
+libthrucommon_la_LDFLAGS = -Wall @SPREAD_LIBS@ $(SSL_LIBS) $(THRIFT_LIBS) $(UUID_LIBS) $(MEMCACHED_LIBS) $(BOOST_LDFLAGS) $(LIBEVENT_LDFLAGS) $(LIBEVENT_LIBS) $(BOOST_FILESYSTEM_LIB)  $(BOOST_SYSTEM_LIB)
 
 LDADD = $(top_builddir)/src/libthrucommon.la
 
 thrurecorder_CPPFLAGS = -Wall -Igen-cpp $(SPREAD_CFLAGS) $(THRIFT_CFLAGS) $(BOOST_CPPFLAGS)
 thrurecorder_LDADD = $(LDADD)
-thrurecorder_LDFLAGS = -Wall -rpath $(pkglibdir) $(SPREAD_LIBS) $(THRIFTNB_LIBS) $(BOOST_LDFLAGS) 
+thrurecorder_LDFLAGS = -Wall -rpath $(pkglibdir) @SPREAD_LIBS@ $(THRIFTNB_LIBS) $(BOOST_LDFLAGS) 
 thrurecorder_SOURCES = \
 		       thrurecorder.cpp
 

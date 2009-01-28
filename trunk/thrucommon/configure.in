@@ -54,7 +54,7 @@ if test "$with_spread" != "no"; then
     AC_LANG_PUSH([C])  
 
     AC_MSG_CHECKING(Spread Version)  
-                                                                                                                                                               
+    SPREAD_LIBS="-lspread"                                                                                                                                                               
     AC_TRY_RUN([
 #include <sp.h>
 #include <stdio.h>
@@ -69,7 +69,7 @@ int main(void)
     return 0;
 }       
 ],                                                                                                                                                            
-      [AC_MSG_RESULT(OK) AC_DEFINE(HAVE_LIBSPREAD,1,Define if new Spread API) SPREAD_LIBS="-lspread"],
+      [AC_MSG_RESULT(OK) AC_DEFINE(HAVE_LIBSPREAD,1,Define if new Spread API) AC_SUBST(SPREAD_LIBS)],
       [AC_MSG_RESULT(no)]  )   
 
 fi
