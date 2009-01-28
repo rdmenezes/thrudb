@@ -102,7 +102,7 @@ Let’s go back to our build dir, and start on the other dependencies for thrudb
 
 {{{
 $ cd ..
-$ sudo apt-get -y install memcached libexpat1-dev libssl-dev libcurl4-openssl-dev liblog4cxx9-dev uuid-dev libboost-filesystem-dev libmysql++-dev libdb4.5++-dev
+$ sudo apt-get -y install memcached libexpat1-dev libssl-dev libcurl4-openssl-dev uuid-dev libboost-filesystem-dev libmysql++-dev libdb4.5++-dev  libltdl3-dev
 }}}
 
 These will take a few minutes each. Accept all defaults when prompted.
@@ -115,8 +115,8 @@ Now we’ll get, build, and install libmemcached:
 
 {{{
 $ sudo apt-get install curl
-$ curl http://download.tangent.org/libmemcached-0.17.tar.gz | tar xzf -
-$ cd libmemcached-0.17
+$ curl http://download.tangent.org/libmemcached-0.25.tar.gz | tar xzf -
+$ cd libmemcached-0.25
 $ ./configure
 $ make
 $ sudo make install
@@ -125,7 +125,9 @@ $ cd ..
 
 *Spread*
 
-Spread requires filling in a form to download it, which will be tricky from the command line, but curl to the rescue (replace the values of name, company, and email in the first command with your own information):
+*Spread is not required for thrudb*
+
+Spread requires filling in a form to download it, which will be tricky from the command line, but curl to the rescue (replace the values of name, company, and email in the first command with your own information): 
 
 {{{
 $ curl -L -d FILE=spread-src-4.0.0.tar.gz -d name="Thrudb User" -d company="Thrudb User" -d email="unknown@thrudb.org" -d Stage=Download http://www.spread.org/download/spread-src-4.0.0.tar.gz | tar xzf -
@@ -138,27 +140,14 @@ $ cd ..
 
 *CLucene*
 
-In order to build CLucene, we need libltdl3-dev:
+Now we'll download, build, and install the latest version of CLucene:
 
 {{{
-$ sudo apt-get install libltdl3-dev
-}}}
-
-Now we'll checkout, build, and install the latest version of CLucene:
-
-{{{
-$ svn co https://clucene.svn.sourceforge.net/svnroot/clucene/trunk clucene
-$ cd clucene
-$ ./autogen.sh
+$ curl http://internap.dl.sourceforge.net/sourceforge/clucene/clucene-core-0.9.21b.tar.gz | tar zxf -
+$  cd clucene-core-0.9.21b/
 $ ./configure
 $ make
 $ sudo make install
-}}}
-
-Somehow clucene-config.h, which is expected to be in /usr/local/include/CLucene/, but for some reason is actually in /usr/local/lib/CLucene/. To fix this, we just copy the file:
-
-{{{
-$ sudo cp /usr/local/lib/CLucene/clucene-config.h /usr/local/include/CLucene/
 }}}
 
 -----
@@ -174,16 +163,19 @@ $ cd thrudb
 To build and install everything:
 
 {{{
-$ sudo make
+$ ./bootstrap.sh
+$ ./configure 
+$ make
+$ sudo make install
 }}}
 
-You can build specific portions, thrucommon is required, everything after is if you want it:
+You can alse build specific portions, thrucommon is required, everything after is if you want it:
 
 {{{
 $ cd thrucommon
 $ ./bootstrap.sh
 $ ./configure
-$ make all
+$ make
 $ sudo make install
 }}}
 
