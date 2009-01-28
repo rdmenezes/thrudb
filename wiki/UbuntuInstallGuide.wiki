@@ -19,13 +19,6 @@ $ sudo apt-get update
 $ sudo apt-get -y install subversion g++ make flex bison python-dev libboost-dev libevent-dev automake pkg-config libtool
 }}}
 
-Also, since we’ll need it later, let’s update CPAN, the Perl module install tool now:
-
-{{{
-$ sudo perl -MCPAN -e "install Bundle::CPAN"
-}}}
-
-CPAN takes 10 minutes or so to update. When prompted about “manual configuration”, enter no. Eventually you’ll get 3 more prompts, to which the defaults are fine (Update configuration for libnet: no, Perl expression: exit, YAML.pm warning: y). Just hit return at each prompt.
 
 ----
 *2. Thrift*
