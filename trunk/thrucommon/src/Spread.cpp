@@ -40,7 +40,7 @@ Spread::Spread (const string & name, const string & private_name)
     if (ret < 0)
     {
         string error = SP_error_to_string (ret);
-        LOG4CXX_ERROR (logger, error);
+        T_ERROR ( error.c_str());
         throw new SpreadException (error);
     }
 
@@ -141,13 +141,11 @@ void Spread::queue (const service service_type, const string & group,
                     const int message_type, const char * message,
                     const int message_len)
 {
-    if (logger->isDebugEnabled ())
-    {
-        char buf[128];
-        T_DEBUG( "queue: group=%s, message_type=%d", group.c_str (),
-                 message_type);
 
-    }
+    T_DEBUG( "queue: group=%s, message_type=%d", group.c_str (),
+             message_type);
+
+
     QueuedMessage * queued_message =
         (QueuedMessage*)malloc (sizeof (QueuedMessage));
     queued_message->service_type = service_type;
@@ -323,7 +321,7 @@ void Spread::dispatch (const string & sender, const vector<string> & groups,
 
     for (size_t i = 0; i < groups.size (); i++)
     {
-        LOG4CXX_DEBUG (logger, "dispatch:    groups[i]=" + groups[i]);
+        T_DEBUG ("dispatch:    groups[i]=%s", groups[i].c_str());
         map<string, map<int, map<string,
             vector<SubscriberCallbackInfo *> > > >::iterator g =
                 this->subscriptions.find (groups[i]);
