@@ -114,7 +114,7 @@ else
             fi
         done
 
-        BERKELEY_DB_LIB="-ldb"
+        BERKELEY_DB_LIB="-ldb_cxx"
         for v in db-4.7 db4.7 db47 db-4.6 db4.6 db46 db-4.5 db4.5 db45 db-4.4 db4.4 db44; do
             if test -f "$BERKELEY_DB_DIR/lib/lib${v}_cxx.so"; then
                 BERKELEY_DB_LIB="-l${v}_cxx"
@@ -227,7 +227,7 @@ int main(void)
 }
        ],
        [AC_MSG_RESULT(OK) AC_DEFINE(HAVE_BERKELEYDB,1,Define if new Berkeley API)],
-       [AC_MSG_RESULT(no)]
+       [AC_MSG_RESULT(no) BERKELEY_DB_LDFLAGS= BERKELEY_DB_CPPFLAGS= BERKELEY_DB_LIB=]
     )
 
     LDFLAGS=$BERKELEY_DB_SAVE_LDFLAGS
