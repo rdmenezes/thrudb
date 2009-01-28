@@ -19,5 +19,5 @@ AC_PROG_INSTALL
 AM_PROG_LIBTOOL
 AC_PROG_RANLIB
 
-AC_CONFIG_SUBDIRS(thrucommon thrudoc thrudex thruqueue throxy)
+AC_CONFIG_SUBDIRS(thrucommon thrudoc thrudex thruqueue)
 AC_OUTPUT(Makefile)

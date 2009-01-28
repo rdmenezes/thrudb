@@ -6,6 +6,7 @@ AC_PROG_LIBTOOL
 AM_INIT_AUTOMAKE
 AC_CONFIG_SRCDIR([thrudex_config.h.in])
 AC_CONFIG_HEADER(thrudex_config.h)
+PKG_PROG_PKG_CONFIG
 
 # Checks for programs.
 AC_PROG_CC
@@ -64,7 +65,7 @@ int main(void)
 }
        ],
        [AC_MSG_RESULT(OK)],
-       [AC_MSG_ERROR(Clucene is required for thrudex2) ]
+       [AC_MSG_ERROR(Clucene is required for thrudex) ]
     )
 
     AC_SUBST(CLUCENE_CPPFLAGS)
@@ -95,10 +96,7 @@ fi
 
 # boost filesystem
 AX_BOOST_BASE([1.33.1])
-
-if test "$with_disk" != "no" -o "$with_bdb" != "no"; then
 AX_BOOST_FILESYSTEM
-fi
 
 
 # misc
