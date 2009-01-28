@@ -7,6 +7,7 @@
 #if HAVE_LIBSPREAD && HAVE_LIBUUID
 
 #include "ReplicationRecorder.h"
+#include "ThruLogging.h"
 
 #include <protocol/TBinaryProtocol.h>
 #include <transport/TTransportUtils.h>
@@ -18,7 +19,6 @@
 using namespace boost;
 using namespace facebook::thrift::protocol;
 using namespace facebook::thrift::transport;
-using namespace log4cxx;
 using namespace std;
 
 struct RecordedMessage
@@ -30,7 +30,6 @@ struct RecordedMessage
 
 string SP_error_to_string (int error);
 
-LoggerPtr ReplicationRecorder::logger (Logger::getLogger ("ReplicationRecorder"));
 
 ReplicationRecorder::ReplicationRecorder (const string & replication_name,
                                           const string & replication_private_name,
@@ -38,7 +37,7 @@ ReplicationRecorder::ReplicationRecorder (const string & replication_name,
     spread (replication_name, replication_private_name),
     replication_group (replication_group)
 {
-    LOG4CXX_INFO (logger, "ReplicationRecorder:");
+    T_DEBUG ("ReplicationRecorder:");
 
     // subscribe to "live" messages
     SubscriberCallbackInfo * live_callback_info = new SubscriberCallbackInfo ();
@@ -68,7 +67,7 @@ bool ReplicationRecorder::handle_orig_message
  const std::vector<std::string> & /* groups */,
  const int /* message_type */, const char * message, const int message_len)
 {
-    LOG4CXX_DEBUG (logger, "handle_orig_message:");
+    T_DEBUG ( "handle_orig_message:");
 
     // TODO: don't recreate these every time...
     shared_ptr<TMemoryBuffer> mbuf (new TMemoryBuffer ());
@@ -80,7 +79,7 @@ bool ReplicationRecorder::handle_orig_message
     mbuf->resetBuffer ((uint8_t*)message, message_len);
     m->read (&prot);
 
-    LOG4CXX_DEBUG (logger, "handle_orig_message:    m.uuid=" + m->uuid);
+    T_DEBUG ( "handle_orig_message:    m.uuid=%s",  m->uuid.c_str());
 
     RecordedMessage * rm = new RecordedMessage ();
     rm->message = m;
@@ -98,7 +97,7 @@ bool ReplicationRecorder::handle_replay_message
  const int /* message_type */, const char * message, const int /* message_len */)
 {
     string uuid = message;
-    LOG4CXX_DEBUG (logger, "handle_replay_message: uuid=" + uuid);
+    T_DEBUG (logger, "handle_replay_message: uuid=%s", uuid.c_str());
 
     RecordedMessage * next = NULL;
     vector<RecordedMessage *>::iterator i;
@@ -117,15 +116,15 @@ bool ReplicationRecorder::handle_replay_message
 
     if (next)
     {
-        LOG4CXX_DEBUG (logger, "handle_replay_message: found uuid, returning next.uuid=" +
-                       next->message->uuid);
+        T_DEBUG ("handle_replay_message: found uuid, returning next.uuid=%s",
+                 next->message->uuid.c_str());
         // send it
         this->spread.queue (RELIABLE_MESS | SELF_DISCARD, sender,
                             REPLAY_MESSAGE_TYPE, next->buf, next->len);
     }
     else
     {
-        LOG4CXX_DEBUG (logger, "handle_replay_message: no next, returning NULL");
+        T_DEBUG ("handle_replay_message: no next, returning NULL");
         // send none response
         string none = "none";
         this->spread.queue (RELIABLE_MESS | SELF_DISCARD, sender,

@@ -145,14 +145,14 @@ void Spread::queue (const service service_type, const string & group,
     T_DEBUG( "queue: group=%s, message_type=%d", group.c_str (),
              message_type);
 
-
     QueuedMessage * queued_message =
         (QueuedMessage*)malloc (sizeof (QueuedMessage));
     queued_message->service_type = service_type;
-    queued_message->group = strndup (group.c_str (), group.length ());
+    queued_message->group = (char *)malloc (sizeof (char) * group.length ());
+    memcpy(queued_message->group, group.c_str (), group.length ());
     queued_message->message_type = message_type;
     queued_message->message = (char *)malloc (sizeof (char) * message_len);
-    memcpy (queued_message->message, message, message_len);
+    memcpy(queued_message->message, message, message_len);
     queued_message->message_len = message_len;
     this->pending_messages.push (queued_message);
 }

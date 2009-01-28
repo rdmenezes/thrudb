@@ -8,7 +8,6 @@
 #if HAVE_LIBSPREAD && HAVE_LIBUUID
 
 #include <EventLog_types.h>
-#include <log4cxx/logger.h>
 #include <vector>
 #include <Spread.h>
 #include <string>
@@ -40,7 +39,6 @@ class ReplicationRecorder
         void record ();
 
     private:
-        static log4cxx::LoggerPtr logger;
 
         static bool orig_message_callback (Spread * /* spread_connection */,
                                            const std::string & sender,
@@ -73,8 +71,8 @@ class ReplicationRecorder
                                   const int message_len);
         bool handle_replay_message (const std::string & sender,
                                     const std::vector<std::string> & groups,
-                                    const int message_type, 
-                                    const char * message, 
+                                    const int message_type,
+                                    const char * message,
                                     const int message_len);
 };
 

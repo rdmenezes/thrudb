@@ -17,16 +17,15 @@
 
 #include "ConfigFile.h"
 #include "ReplicationRecorder.h"
+#include "ThruLogging.h"
 
 #include <iostream>
-#include <log4cxx/logger.h>
-#include <log4cxx/propertyconfigurator.h>
 #include <stdexcept>
 
-using namespace log4cxx;
+
 using namespace std;
 
-LoggerPtr logger (Logger::getLogger ("ThruRecorder"));
+
 
 //print usage and die
 inline void usage ()
@@ -51,10 +50,8 @@ int main (int argc, char **argv)
 
     try
     {
-        //Init logger
-        PropertyConfigurator::configure (conf_file);
 
-        LOG4CXX_INFO (logger, "Starting up");
+        T_INFO ( "Starting up");
 
         string replication_private_name =
             ConfigManager->read<string>("REPLICATION_PRIVATE_NAME");
@@ -63,20 +60,18 @@ int main (int argc, char **argv)
         string replication_group =
             ConfigManager->read<string>("REPLICATION_GROUP");
 
-        ReplicationRecorder recorder (replication_name, 
-                                      replication_private_name, 
+        ReplicationRecorder recorder (replication_name,
+                                      replication_private_name,
                                       replication_group);
         recorder.record ();
 
     }
     catch (ReplicationException e)
     {
-        LOG4CXX_ERROR (logger, "ReplicationException: " + e.message);
         cerr << "ReplicationException: " << e.message << endl;
     }
     catch (SpreadException e)
     {
-        LOG4CXX_ERROR (logger, "SpreadException: " + e.message);
         cerr << "SpreadException: " << e.message << endl;
     }
     catch (std::runtime_error e)
@@ -98,7 +93,7 @@ int main (int argc, char **argv)
     catch (...)
     {
         cerr<<"Caught unknown exception"<<endl;
-        }
+    }
 
     return 0;
 }
