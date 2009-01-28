@@ -3,16 +3,9 @@
 
 *1. Initial Setup*
 
-Alright, we’re ready to start installing. Most of the dependencies are available with apt-get, but some we’ll have to build from source. The first thing we need for thrudb is thrift, which itself has quite a few dependencies.
+Most of the dependencies are available with apt-get, but some we’ll have to build from source. The first thing we need for thrudb is thrift, which itself has  a few dependencies.
 
-First let’s make a directory to put our files in:
-
-{{{
-$ mkdir buildthrudb
-$ cd buildthrudb
-}}}
-
-Next we’ll update apt-get and install our build tools and thrift dependencies:
+First install our build tools and thrift dependencies:
 
 {{{
 $ sudo apt-get -y install subversion g++ make flex bison python-dev libboost-dev libevent-dev automake pkg-config libtool
