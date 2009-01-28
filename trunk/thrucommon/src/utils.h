@@ -17,6 +17,7 @@
 #include <iostream>
 #include <uuid/uuid.h>
 #include <openssl/md5.h>
+#include <cstring>
 
 inline bool file_exists( std::string filename )
 {
