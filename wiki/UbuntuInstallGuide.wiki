@@ -23,6 +23,7 @@ $ cd thrift
 }}}
 
 *2.1 Optional Java Support *
+
 In order to configure Thrift with java support you will need Java installed first:
 
 {{{
