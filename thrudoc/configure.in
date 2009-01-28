@@ -55,6 +55,7 @@ AC_ARG_WITH(spread,
     [with_spread=yes])
 if test "$with_spread" != "no"; then
     AC_LANG_PUSH([C])  
+    SPREAD_LIBS="-lspread"
 
     AC_MSG_CHECKING(Spread Version)  
                                                                                                                                                                    
@@ -72,7 +73,7 @@ int main(void)
     return 0;
 }       
 ],                                                                                                                                                            
-      [AC_MSG_RESULT(OK) AC_DEFINE(HAVE_LIBSPREAD,1,Define if new Spread API)],
+      [AC_MSG_RESULT(OK) AC_DEFINE(HAVE_LIBSPREAD,1,Define if new Spread API) AC_SUBST(SPREAD_LIBS)],
       [AC_MSG_RESULT(no)]  )   
 
 fi
@@ -111,10 +112,11 @@ PKG_CHECK_MODULES(UUID, [uuid],
 
 #boost
 AX_BOOST_BASE([1.33.1])
-
-if test "$with_disk" != "no" -o "$with_bdb" != "no"; then
 AX_BOOST_FILESYSTEM
+if test "x$link_filesystem" != "xyes"; then
+    AC_MSG_ERROR([libboost filesystem is required; please install development libraries])   
 fi
+AX_BOOST_SYSTEM
 
 
 # ssl

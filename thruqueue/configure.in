@@ -29,6 +29,14 @@ if test "x$ax_have_libevent" != "xyes"; then
 AC_MSG_ERROR([libevent is required; please install development libraries])   
 fi
 
+#boost
+AX_BOOST_BASE([1.33.1])
+AX_BOOST_FILESYSTEM
+if test "x$link_filesystem" != "xyes"; then
+    AC_MSG_ERROR([libboost filesystem is required; please install development libraries])   
+fi
+AX_BOOST_SYSTEM
+
 # misc
 AC_C_CONST
 AC_CHECK_HEADERS([stdlib.h])
