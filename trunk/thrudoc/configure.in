@@ -74,7 +74,7 @@ int main(void)
 }       
 ],                                                                                                                                                            
       [AC_MSG_RESULT(OK) AC_DEFINE(HAVE_LIBSPREAD,1,Define if new Spread API) AC_SUBST(SPREAD_LIBS)],
-      [AC_MSG_RESULT(no)]  )   
+      [AC_MSG_RESULT(no)]; SPREAD_LIBS=""  )   
 
 fi
 
