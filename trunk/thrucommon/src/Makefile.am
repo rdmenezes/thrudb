@@ -36,8 +36,8 @@ libthrucommon_la_SOURCES = \
 			   Spread.cpp				\
 			   ThruFileTransport.cpp
 
-libthrucommon_la_CPPFLAGS = -Wall -Igen-cpp $(MEMCACHED_CFLAGS) $(SPEAD_CFLAGS) $(SSL_CFLAGS) $(THRIFT_CFLAGS) $(UUID_CFLAGS) $(BOOST_CPPFLAGS)
-libthrucommon_la_LDFLAGS = -Wall $(SPEAD_LIBS) $(SSL_LIBS) $(THRIFT_LIBS) $(UUID_LIBS) $(MEMCACHED_LIBS) $(BOOST_LDFLAGS) $(LIBEVENT_LDFLAGS) $(LIBEVENT_LIBS)
+libthrucommon_la_CPPFLAGS = -Wall -Igen-cpp $(MEMCACHED_CFLAGS) $(SPREAD_CFLAGS) $(SSL_CFLAGS) $(THRIFT_CFLAGS) $(UUID_CFLAGS) $(BOOST_CPPFLAGS)
+libthrucommon_la_LDFLAGS = -Wall $(SPREAD_LIBS) $(SSL_LIBS) $(THRIFT_LIBS) $(UUID_LIBS) $(MEMCACHED_LIBS) $(BOOST_LDFLAGS) $(LIBEVENT_LDFLAGS) $(LIBEVENT_LIBS) $(BOOST_FILESYSTEM_LIB)  $(BOOST_SYSTEM_LIB)
 
 LDADD = $(top_builddir)/src/libthrucommon.la
 
