@@ -180,7 +180,7 @@ MySQLBackend::load_partitions (const string & bucket)
 
     while (partitions_statement->fetch () != MYSQL_NO_DATA)
     {
-        T_DEBUG("  load_partitions inserting: datatable=%s",pr->get_datatable ().c_str());
+        T_DEBUG("  load_partitions inserting: datatable=%s",pr->get_datatable ());
         new_partitions->insert (new Partition (pr));
     }
 
@@ -246,7 +246,7 @@ string MySQLBackend::get (const string & bucket, const string & key )
 
     KeyValueResults * kvr =
         (KeyValueResults*)get_statement->get_bind_results ();
-    T_DEBUG("get: key=%s value %s", kvr->get_key().c_str(),  kvr->get_value ().c_str());
+    T_DEBUG("get: key=%s value %s", kvr->get_key(),  kvr->get_value ());
     value = kvr->get_value ();
 
     get_statement->free_result ();
@@ -406,7 +406,7 @@ FindReturn MySQLBackend::find_and_checkout (const string & bucket,
         delete part;
         if (partition != partitions_set->end ())
         {
-            T_DEBUG ("found container, datatable=%s",(*partition)->get_datatable ().c_str());
+            T_DEBUG ("found container, datatable=%s",(*partition)->get_datatable ());
             find_return.connection = connection_factory->get_connection
                 ((*partition)->get_hostname (), (*partition)->get_port (),
                  (*partition)->get_slave_hostname (),

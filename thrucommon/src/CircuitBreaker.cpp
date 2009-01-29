@@ -7,7 +7,8 @@
 
 #include "CircuitBreaker.h"
 #include <stdlib.h>
-
+#include <stdio.h>
+#include <iostream>
 
 CircuitBreaker::CircuitBreaker (uint16_t threshold,
                                 uint16_t timeout_in_seconds)

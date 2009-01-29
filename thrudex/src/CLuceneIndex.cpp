@@ -97,7 +97,7 @@ CLuceneIndex::CLuceneIndex(const string &index_root, const string &index_name, c
 
                 STRCPY_TtoA(buf,id,1024);
 
-                T_DEBUG(logger,"blooming index id: %s(%s)",index_name.c_str(),buf);
+                T_DEBUG("blooming index id: %s(%s)",index_name.c_str(),buf);
 
                 disk_bloom->insert(buf);
             }
@@ -234,7 +234,7 @@ void CLuceneIndex::put( const string &key, lucene::document::Document *doc )
         Term *t = new Term(DOC_KEY, wkey.c_str() );
 
         l_modifier->deleteDocuments(t);
-        T_DEBUG(logger,"Updating %s",key.c_str());
+        T_DEBUG("Updating %s",key.c_str());
 
         delete t;
     }
