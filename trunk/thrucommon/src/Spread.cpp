@@ -46,7 +46,7 @@ Spread::Spread (const string & name, const string & private_name)
 
     // save our private group name
     this->private_group = private_group;
-    T_DEBUG ( "Spread: private_group=%s",this->private_group);
+    T_DEBUG ( "Spread: private_group=%s",this->private_group.c_str());
 }
 
 Spread::~Spread ()
@@ -229,11 +229,11 @@ void Spread::run (int count)
                 }
 
                 this->groups[sender].clear ();
-                T_DEBUG ("run: membership group=%s", sender.c_str());
+                T_DEBUG ("run: membership group=%s", sender);
                 for (int j = 0; j < num_groups; j++)
                 {
                     this->groups[sender].insert (groups[j]);
-                    T_DEBUG ("run:    member=%s",groups[j].c_str());
+                    T_DEBUG ("run:    member=%s",groups[j]);
                 }
             }
         }

@@ -120,7 +120,7 @@ string BDBBackend::get (const string & bucket, const string & key)
         {
             ThrudocException e;
             e.what = key + " not found in " + bucket;
-            T_DEBUG ("get: exception=%s", e.what);
+            T_DEBUG ("get: exception=%s", e.what.c_str());
             throw e;
         }
     }

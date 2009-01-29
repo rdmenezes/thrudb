@@ -335,7 +335,7 @@ void Queue::enqueue(const string &mess, bool priority)
 
         queue_length++;
     }else{
-        T_DEBUG(logger,"Skipping non unique message:%s",mess.c_str());
+        T_DEBUG("Skipping non unique message:%s",mess.c_str());
     }
 }
 

@@ -50,7 +50,7 @@ string MemcachedBackend::get (const string & bucket, const string & key )
     }
     else if (rc == MEMCACHED_NOTFOUND)
     {
-        T_DEBUG ("get miss: key=%s",key);
+        T_DEBUG ("get miss: key=%s",key.c_str());
     }
     else
     {
@@ -149,7 +149,7 @@ void MemcachedBackend::cache_put (const string & cache_key,
     {
 
         T_INFO("memcache put error: cache_key=%s, strerror=%s",
-                cache_key.c_str (), memcached_strerror(cache, rc));
+               cache_key.c_str (), memcached_strerror(cache, rc));
 
     }
 }
