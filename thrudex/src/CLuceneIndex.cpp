@@ -41,6 +41,8 @@ struct reader_deleter
     void operator()(void const *o) const {
         IndexReader *r = (IndexReader *)o;
 
+        T_DEBUG("called reader cleanup");
+
         r->close();
         delete r;
     }
@@ -70,6 +72,9 @@ CLuceneIndex::CLuceneIndex(const string &index_root, const string &index_name, c
             //Force unlock index incase it was left locked
             if ( IndexReader::isLocked(idx_path.c_str()) )
                 IndexReader::unlock(idx_path.c_str());
+
+            //optimize on startup
+            this->optimize();
 
             new_index = false;
 
@@ -170,8 +175,6 @@ shared_ptr<MultiSearcher> CLuceneIndex::getSearcher()
         modifier->flush();
 
         ram_searcher.reset();
-
-        //shared_ptr<CLuceneRAMDirectory> l_ram_readonly_directory = ram_readonly_directory;
 
         //make a copy of the ram dir since its not thread safe
         ram_readonly_directory.reset( new CLuceneRAMDirectory( ram_directory.get() ), null_deleter() );
@@ -289,7 +292,6 @@ void CLuceneIndex::remove(const string &key)
         Term      *t = new Term(DOC_KEY, wkey.c_str() );
 
         l_modifier->deleteDocuments(t);
-        //l_modifier->flush();
 
         last_modified = Util::currentTime();
 
@@ -440,7 +442,8 @@ void CLuceneIndex::search(const thrudex::SearchQuery &q, thrudex::SearchResponse
                 const wchar_t *id   = doc->get(DOC_KEY);
 
                 if(id == NULL){
-                    //assert(id != NULL);
+
+                    T_ERROR("Dockey missing from document!")
                     continue;
                 } else {
 
@@ -475,7 +478,7 @@ void CLuceneIndex::search(const thrudex::SearchQuery &q, thrudex::SearchResponse
                 const wchar_t *id   = doc->get(DOC_KEY);
 
                 if(id == NULL) {
-                    assert(id != NULL);
+                    T_ERROR("Dockey missing from document!")
                     continue;
                 } else {
                     STRCPY_TtoA(buf,id,1024);
@@ -577,6 +580,7 @@ void CLuceneIndex::sync(bool force)
     T_DEBUG("Created Handles");
 
     {
+        Guard g(mutex);
         //Now we start by deleting any updated docs from disk
         shared_ptr<IndexReader> tmp_disk_reader(IndexReader::open(idx_path.c_str()));
 
@@ -604,7 +608,7 @@ void CLuceneIndex::sync(bool force)
     {
         //Now merge in the ram
         shared_ptr<IndexWriter> disk_writer(new IndexWriter(idx_path.c_str(),analyzer.get(),false,false));
-        disk_writer->setUseCompoundFile(false);
+        disk_writer->setUseCompoundFile(true);
 
         Directory *dirs[2];
 
@@ -625,7 +629,6 @@ void CLuceneIndex::sync(bool force)
     shared_ptr<IndexReader>   l_disk_reader( IndexReader::open(idx_path.c_str()), reader_deleter() );
     shared_ptr<IndexSearcher> l_disk_searcher( new IndexSearcher(l_disk_reader.get()) );
 
-
     wstring q = wstring(DOC_KEY)+wstring(L":1234");
 
     Query *query = QueryParser::parse( q.c_str(),DOC_KEY,analyzer.get());
@@ -637,14 +640,12 @@ void CLuceneIndex::sync(bool force)
 
     //replace index handles
     {
-        //RWGuard g(mutex,true);
         Guard g(mutex);
 
         //the order of these things really matters
         disk_searcher = l_disk_searcher;
         disk_filter.reset( new UpdateFilter(l_disk_reader) );
         disk_reader   = l_disk_reader;
-
 
 
         //Add any new deletes to the filter
@@ -674,7 +675,7 @@ void CLuceneIndex::optimize()
 
     string idx_path = index_root + "/" + index_name;
     shared_ptr<IndexWriter> disk_writer(new IndexWriter(idx_path.c_str(),analyzer.get(),false,false));
-    disk_writer->setUseCompoundFile(false);
+    disk_writer->setUseCompoundFile(true);
 
     disk_writer->optimize();
 
