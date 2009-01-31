@@ -82,9 +82,6 @@ CLuceneIndex::CLuceneIndex(const string &index_root, const string &index_name, c
             T_DEBUG("Created index :%s",index_name.c_str());
         }
 
-        //optimize index for saftey
-        this->optimize();
-
         //build up bloom filter
         disk_bloom    = shared_ptr<bloom_filter>(new bloom_filter(filter_space,1.0/(1.0 * filter_space), random_seed));
         disk_reader   = shared_ptr<IndexReader>(IndexReader::open(idx_path.c_str()), reader_deleter() );
