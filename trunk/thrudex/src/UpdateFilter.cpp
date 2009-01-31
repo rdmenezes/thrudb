@@ -1,5 +1,6 @@
 #include "UpdateFilter.h"
 #include "CLuceneIndex.h"
+#include "ThruLogging.h"
 
 using namespace boost;
 using namespace lucene::index;
@@ -20,7 +21,7 @@ UpdateFilter::UpdateFilter(shared_ptr<IndexReader> reader)
 
 UpdateFilter::~UpdateFilter()
 {
-
+    T_DEBUG("Deleted update filter");
 }
 
 BitSet* UpdateFilter::bits(IndexReader* reader)
@@ -46,12 +47,13 @@ BitSet* UpdateFilter::bits(IndexReader* reader)
 
 void UpdateFilter::skip( wstring key )
 {
-
     TermEnum *enumerator;
     Term              *t;
     try{
         t = new Term(DOC_KEY, key.c_str() );
+
         enumerator = reader->terms(t);
+
         if (enumerator->term(false) == NULL){
             _CLDELETE(enumerator);
             delete t;
@@ -59,6 +61,7 @@ void UpdateFilter::skip( wstring key )
         }
     }catch(CLuceneError e){
         cerr<<"!!!Caught Fatal CLucene Exception: "<<e.what()<<endl;
+        delete t;
         return;
     }
 
