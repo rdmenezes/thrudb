@@ -10,12 +10,12 @@ use Thrift::FramedTransport;
 
 use lib "gen-perl";
 
-use Thrudex;
+use Thrudex::Thrudex;
 
 my $socket    = new Thrift::Socket("localhost", 9099);
 my $transport = new Thrift::FramedTransport($socket);
 my $protocol  = new Thrift::BinaryProtocol($transport);
-my $thrudex = new ThrudexClient($protocol);
+my $thrudex   = new Thrudex::ThrudexClient($protocol);
 
 $transport->open();
 
