@@ -93,6 +93,7 @@ sub connect_to_thrudoc
 
     eval{
        my $socket    = new Thrift::Socket("localhost",THRUDOC_PORT());
+       $socket->setRecvTimeout(5000);
        my $transport = new Thrift::FramedTransport($socket);
        my $protocol  = new Thrift::BinaryProtocol($transport);
        $self->{thrudoc}  = new Thrudoc::ThrudocClient($protocol);
@@ -112,6 +113,8 @@ sub connect_to_thrudex
 
     eval{
         my $socket    = new Thrift::Socket("localhost",THRUDEX_PORT());
+        $socket->setRecvTimeout(5000);
+
         my $transport = new Thrift::FramedTransport($socket);
         my $protocol  = new Thrift::BinaryProtocol($transport);
         $self->{thrudex}  = new Thrudex::ThrudexClient($protocol);
