@@ -641,7 +641,6 @@ void CLuceneIndex::sync()
         last_synched = Util::currentTime();
 
         syncing = false; //this flag alters the search code to include prev searcher
-
     }
 
     T_DEBUG("Set new search");

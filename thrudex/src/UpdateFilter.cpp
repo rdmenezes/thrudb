@@ -45,15 +45,16 @@ void UpdateFilter::skip( wstring key )
     TermEnum *enumerator;
     Term              *t;
     try{
-    t = new Term(DOC_KEY, key.c_str() );
-    enumerator = reader->terms(t);
-    if (enumerator->term(false) == NULL){
-        _CLDELETE(enumerator);
-        delete t;
-        return;
-    }
+        t = new Term(DOC_KEY, key.c_str() );
+        enumerator = reader->terms(t);
+        if (enumerator->term(false) == NULL){
+            _CLDELETE(enumerator);
+            delete t;
+            return;
+        }
     }catch(CLuceneError e){
         cerr<<"!!!Caught Fatal CLucene Exception: "<<e.what()<<endl;
+        return;
     }
 
     TermDocs* termDocs = reader->termDocs();
