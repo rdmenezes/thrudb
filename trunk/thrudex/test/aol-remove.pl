@@ -12,12 +12,12 @@ use Thrift::FramedTransport;
 
 use Data::Dumper;
 
-use Thrudex;
+use Thrudex::Thrudex;
 
 my $socket    = new Thrift::Socket('localhost',9099);
 my $transport = new Thrift::FramedTransport($socket);
 my $protocol  = new Thrift::BinaryProtocol($transport);
-my $client    = new ThrudexClient($protocol);
+my $client    = new Thrudex::ThrudexClient($protocol);
 
 my $index  = shift;
 my $query  = shift;
