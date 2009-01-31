@@ -13,8 +13,8 @@ use Thrift::Socket;
 use Thrift::FramedTransport;
 
 #Thrudb
-use Thrudex;
-use Thrudoc;
+use Thrudex::Thrudex;
+use Thrudoc::Thrudoc;
 
 use JSON::Any;
 use LWP::UserAgent;
@@ -57,7 +57,7 @@ sub connect_to_thrudoc
        my $socket    = new Thrift::Socket("localhost",THRUDOC_PORT());
        my $transport = new Thrift::FramedTransport($socket);
        my $protocol  = new Thrift::BinaryProtocol($transport);
-       $self->{thrudoc}  = new ThrudocClient($protocol);
+       $self->{thrudoc}  = new Thrudoc::ThrudocClient($protocol);
 
        $transport->open();
 
@@ -76,7 +76,7 @@ sub connect_to_thrudex
         my $socket    = new Thrift::Socket("localhost",THRUDEX_PORT());
         my $transport = new Thrift::FramedTransport($socket);
         my $protocol  = new Thrift::BinaryProtocol($transport);
-        $self->{thrudex}  = new ThrudexClient($protocol);
+        $self->{thrudex}  = new Thrudex::ThrudexClient($protocol);
 
         $transport->open();
 
@@ -121,7 +121,7 @@ sub run
                 $count++;
                 $since_id = $tweet->{id};
             }; if($@){
-		$error++
+                $error++
             }
         }
 

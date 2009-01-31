@@ -19,8 +19,8 @@ use Thrift::Socket;
 use Thrift::FramedTransport;
 
 #Thrudb
-use Thrudex;
-use Thrudoc;
+use Thrudex::Thrudex;
+use Thrudoc::Thrudoc;
 
 use JSON::Any;
 use LWP::UserAgent;
@@ -65,7 +65,7 @@ sub connect_to_thrudoc
 
        my $transport = new Thrift::FramedTransport($socket);
        my $protocol  = new Thrift::BinaryProtocol($transport);
-       $self->{thrudoc}  = new ThrudocClient($protocol);
+       $self->{thrudoc}  = new Thrudoc::ThrudocClient($protocol);
 
        $transport->open();
 
@@ -81,11 +81,11 @@ sub connect_to_thrudex
 
     eval{
         my $socket    = new Thrift::Socket("localhost",THRUDEX_PORT());
-	$socket->setRecvTimeout(5000);
+        $socket->setRecvTimeout(5000);
 
         my $transport = new Thrift::FramedTransport($socket);
         my $protocol  = new Thrift::BinaryProtocol($transport);
-        $self->{thrudex}  = new ThrudexClient($protocol);
+        $self->{thrudex}  = new Thrudex::ThrudexClient($protocol);
 
         $transport->open();
 
@@ -169,54 +169,54 @@ sub handle
 {
     my $self  = shift;
     my $q     = new CGI;
-    
+
     my $template = new HTML::Template(filename          => "template.html",
-				      die_on_bad_params => 0,
-				      global_vars       => 1,
-				      cache             => 1,
-				      loop_context_vars => 1
-	);
-    
-    
+                                      die_on_bad_params => 0,
+                                      global_vars       => 1,
+                                      cache             => 1,
+                                      loop_context_vars => 1
+        );
+
+
     my $terms = $q->param("terms");
     my $offset= $q->param("offset") || 0;
     eval{
-	
-	if( defined $terms && $terms ne ""){
-	    
-	    $terms = HTML::Entities::encode($terms);
-	    
-	    #escape this bad boy
-	    my $pterms   = $terms;
-	    $pterms      =~ s/([\+\-\&\|\!\(\)\{\}\[\]\^\"\~\*\?\:\\])/\\$1/g;
-	    $pterms      = "+".join(" +",split(/\s+/,$pterms));
 
-	    
-	    my $t0      = gettimeofday();
-	    
-	    my ($total,$tweets) = $self->search( $pterms, $offset );
-	    
-	    my $t1      = gettimeofday();
-	    
-	    $template->param( 
-		terms      => $terms, 
-		offset     => $offset, 
-		total      => $total, 
-		tweets     => $tweets,
-		current    => $offset,
-		next       => ( $total > ($offset + @$tweets) ? ($offset + @$tweets) : undef),
-		prev       => ( $offset > 0  ? ($offset - 10)." " : undef),
-		
-		rendertime => sprintf("%0.2f", ($t1 - $t0) ));
-	}
+        if( defined $terms && $terms ne ""){
+
+            $terms = HTML::Entities::encode($terms);
+
+            #escape this bad boy
+            my $pterms   = $terms;
+            $pterms      =~ s/([\+\-\&\|\!\(\)\{\}\[\]\^\"\~\*\?\:\\])/\\$1/g;
+            $pterms      = "+".join(" +",split(/\s+/,$pterms));
+
+
+            my $t0      = gettimeofday();
+
+            my ($total,$tweets) = $self->search( $pterms, $offset );
+
+            my $t1      = gettimeofday();
+
+            $template->param(
+                terms      => $terms,
+                offset     => $offset,
+                total      => $total,
+                tweets     => $tweets,
+                current    => $offset,
+                next       => ( $total > ($offset + @$tweets) ? ($offset + @$tweets) : undef),
+                prev       => ( $offset > 0  ? ($offset - 10)." " : undef),
+
+                rendertime => sprintf("%0.2f", ($t1 - $t0) ));
+        }
 
     }; if($@){
-	warn(Dumper($@));
+        warn(Dumper($@));
     }
 
     print "content-type: text/html\n\n";
     print $template->output();
-    
+
 }
 
 1;
