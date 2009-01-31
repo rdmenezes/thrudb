@@ -34,15 +34,13 @@ eval{
     my $i = 0;
     while(1){
 
-        eval{
-            my $r = $client->search( $q );
-            $i++;
+        my $r = $client->search( $q );
+        $i++;
 
-
-            warn(Dumper($r));
-        }; if($@){
-            warn(Dumper($@));
+        if($i % 100 == 0){
+            print "Found: ".$r->total;
         }
+
     }
 
     $transport->close();
