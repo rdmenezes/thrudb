@@ -56,8 +56,10 @@ class CLuceneIndex : public facebook::thrift::concurrency::Runnable
 
     void run();
 
+    void optimize();
+
  private:
-    void sync();
+    void sync(bool force = false);
 
     boost::shared_ptr<lucene::search::MultiSearcher>         getSearcher();
     boost::shared_ptr<facebook::thrift::concurrency::Thread> monitor_thread;

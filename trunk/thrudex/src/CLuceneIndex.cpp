@@ -13,6 +13,7 @@
 #include "UpdateFilter.h"
 #include "ThruLogging.h"
 
+
 using namespace thrudex;
 
 
@@ -81,6 +82,8 @@ CLuceneIndex::CLuceneIndex(const string &index_root, const string &index_name, c
             T_DEBUG("Created index :%s",index_name.c_str());
         }
 
+        //optimize index for saftey
+        this->optimize();
 
         //build up bloom filter
         disk_bloom    = shared_ptr<bloom_filter>(new bloom_filter(filter_space,1.0/(1.0 * filter_space), random_seed));
@@ -93,16 +96,22 @@ CLuceneIndex::CLuceneIndex(const string &index_root, const string &index_name, c
             char buf[1024];
 
             for(int i=0; i<max; i++){
-                const wchar_t *id   = disk_reader->document(i)->get( DOC_KEY );
+                try{
 
-                STRCPY_TtoA(buf,id,1024);
+                    if(disk_reader->isDeleted(i))
+                        continue;
 
-                T_DEBUG("blooming index id: %s(%s)",index_name.c_str(),buf);
+                    const wchar_t *id   = disk_reader->document(i)->get( DOC_KEY );
 
-                disk_bloom->insert(buf);
+                    STRCPY_TtoA(buf,id,1024);
+
+                    T_DEBUG("blooming index id: %s(%s)",index_name.c_str(),buf);
+
+                    disk_bloom->insert(buf);
+                }catch(CLuceneError &e){
+                    T_ERROR("Error while populating bloom filter: %s",e.what());
+                }
             }
-
-
         }
 
         ram_directory = shared_ptr<CLuceneRAMDirectory>(new CLuceneRAMDirectory());
@@ -140,7 +149,6 @@ CLuceneIndex::CLuceneIndex(const string &index_root, const string &index_name, c
         throw ex;
     }
 
-
     //Kick off the monitor thread
     shared_ptr<PosixThreadFactory> threadFactory =
         shared_ptr<PosixThreadFactory>(new PosixThreadFactory());
@@ -159,11 +167,8 @@ CLuceneIndex::~CLuceneIndex()
 shared_ptr<MultiSearcher> CLuceneIndex::getSearcher()
 {
 
-    //RWGuard g( mutex, true );
-    //Guard g( mutex);
-
+    //syncronized in the caller
     if(last_refresh < last_modified || last_refresh < last_synched){
-
 
         modifier->flush();
 
@@ -343,7 +348,7 @@ void CLuceneIndex::search(const thrudex::SearchQuery &q, thrudex::SearchResponse
 
     try{
 
-        T_DEBUG(q.query);
+        T_DEBUG("%s",q.query.c_str());
 
         wstring wquery = build_wstring(q.query);
 
@@ -369,32 +374,48 @@ void CLuceneIndex::search(const thrudex::SearchQuery &q, thrudex::SearchResponse
         ex.what  = "Invalid query: '"+string(e.what())+"'";
 
         throw ex;
+    } catch (...) {
+
+        ThrudexException ex;
+        ex.what  = "Unknown error while parsing query";
+
+        throw ex;
+
     }
 
 
     Hits *h;
     Sort *lsort = NULL;
 
+    try{
 
-    if( q.sortby.empty() ){
-        h = l_searcher->search(query, l_disk_filter.get());
-    } else {
+        if( q.sortby.empty() ){
+            h = l_searcher->search(query, l_disk_filter.get());
+        } else {
 
 
-        T_DEBUG("Sorting by: %s %s",q.sortby.c_str(),(q.desc ? "Descending": ""));
+            T_DEBUG("Sorting by: %s %s",q.sortby.c_str(),(q.desc ? "Descending": ""));
 
-        wstring  sortby   = build_wstring( q.sortby+"_sort" );
+            wstring  sortby   = build_wstring( q.sortby+"_sort" );
 
-        lsort = new Sort();
-        lsort->setSort(  new SortField ( sortby.c_str(), SortField::STRING, q.desc ) );
+            lsort = new Sort();
+            lsort->setSort(  new SortField ( sortby.c_str(), SortField::STRING, q.desc ) );
 
-        try {
-            h = l_searcher->search(query,l_disk_filter.get(),lsort);
-        } catch(CLuceneError &e) {
+            try {
+                h = l_searcher->search(query,l_disk_filter.get(),lsort);
+            } catch(CLuceneError &e) {
 
-            T_INFO( "Sort failed, falling back on regular search");
-            h = l_searcher->search(query,l_disk_filter.get());
+                T_INFO( "Sort failed, falling back on regular search");
+                h = l_searcher->search(query,l_disk_filter.get());
+            }
         }
+    }catch(CLuceneError &e){
+
+        ThrudexException ex;
+        ex.what  = "Error while performing search: '"+string(e.what())+"'";
+
+        throw ex;
+
     }
 
 
@@ -469,11 +490,12 @@ void CLuceneIndex::search(const thrudex::SearchQuery &q, thrudex::SearchResponse
                     el.key   = buf;
 
                     if(q.payload){
-                      const wchar_t *payload = doc->get(DOC_PAYLOAD);
-                      if(payload != NULL){
-                        STRCPY_TtoA(buf,payload,1024);
-                        el.payload = string(buf);
-                      }
+                        T_DEBUG("Fetching payload");
+                        const wchar_t *payload = doc->get(DOC_PAYLOAD);
+                        if(payload != NULL){
+                            STRCPY_TtoA(buf,payload,1024);
+                            el.payload = string(buf);
+                        }
                     }
 
                     r.elements.push_back(el);
@@ -501,11 +523,11 @@ void CLuceneIndex::run()
 
 }
 
-void CLuceneIndex::sync()
+void CLuceneIndex::sync(bool force)
 {
     //Any updates
-    {
-        //RWGuard g(mutex);
+
+    if(!force){
         Guard g(mutex);
         if(last_modified <= last_synched && disk_deletes->empty())
             return;
@@ -644,4 +666,20 @@ void CLuceneIndex::sync()
     }
 
     T_DEBUG("Set new search");
+}
+
+
+void CLuceneIndex::optimize()
+{
+    Guard g(mutex);
+
+    T_DEBUG("Start Optimizing");
+
+    string idx_path = index_root + "/" + index_name;
+    shared_ptr<IndexWriter> disk_writer(new IndexWriter(idx_path.c_str(),analyzer.get(),false,false));
+    disk_writer->setUseCompoundFile(false);
+
+    disk_writer->optimize();
+
+    T_DEBUG("Stop Optimizing");
 }
