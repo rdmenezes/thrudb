@@ -26,10 +26,15 @@ UpdateFilter::~UpdateFilter()
 BitSet* UpdateFilter::bits(IndexReader* reader)
 {
 
+    T_DEBUG("bits");
+
     //Disk updates are all that should be filtered
     if(reader == this->reader.get()){
+
         return bitset.get();
     } else {
+
+        T_DEBUG("creating in mem filter");
         //this is a in memory index no filter
         BitSet *tmp_bs = new BitSet(reader->maxDoc());
         for(int i=0; i<reader->maxDoc(); i++)

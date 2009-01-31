@@ -241,7 +241,21 @@ string CLuceneBackend::admin(const std::string &op, const std::string &data)
         this->addIndex(name);
 
         return "ok";
-    } else if (op == "put_log_position") {
+    }
+
+    if(op == "optimize"){
+
+        if(!this->isValidIndex(data)){
+            ThrudexException e;
+            e.what = "Sync: Invalid Index "+data;
+            T_ERROR( e.what.c_str());
+            throw e;
+        }
+
+        index_cache[data]->optimize();
+    }
+
+    if (op == "put_log_position") {
         fs::ofstream outfile;
         outfile.open( log_pos_file.c_str (),
                       ios::out | ios::binary | ios::trunc);
@@ -255,7 +269,9 @@ string CLuceneBackend::admin(const std::string &op, const std::string &data)
         outfile.write (data.data (), data.size ());
         outfile.close();
         return "done";
-    } else if (op == "get_log_position") {
+    }
+
+    if (op == "get_log_position") {
         fs::ifstream infile;
         infile.open (log_pos_file.c_str (), ios::in | ios::binary | ios::ate);
         if (!infile.is_open ())
