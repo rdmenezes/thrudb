@@ -12,12 +12,12 @@ use Thrift::FramedTransport;
 
 use Data::Dumper;
 
-use Thrudex;
+use Thrudex::Thrudex;
 
-my $socket    = new Thrift::Socket('localhost',9099);
+my $socket    = new Thrift::Socket('localhost',11299);
 my $transport = new Thrift::FramedTransport($socket);
 my $protocol  = new Thrift::BinaryProtocol($transport);
-my $client    = new ThrudexClient($protocol);
+my $client    = new Thrudex::ThrudexClient($protocol);
 
 my $index  = shift;
 my $query  = shift;
@@ -33,14 +33,16 @@ eval{
     $q->{query}  = $query;
     my $i = 0;
     while(1){
-        my $r = $client->search( $q );
-        $i++;
+
+        eval{
+            my $r = $client->search( $q );
+            $i++;
 
 
-        if( $i % 100 == 0 ){
-            print "Found ".$r->total."\n";
+            warn(Dumper($r));
+        }; if($@){
+            warn(Dumper($@));
         }
-
     }
 
     $transport->close();
