@@ -19,7 +19,7 @@ class Replayer : public EventLogIf
         std::string get_current_filename ();
 private:
 
-        facebook::thrift::protocol::TBinaryProtocolFactory protocol_factory;
+        apache::thrift::protocol::TBinaryProtocolFactory protocol_factory;
         boost::shared_ptr<ThrudocBackend> backend;
         boost::shared_ptr<thrudoc::ThrudocProcessor> processor;
         std::string current_filename;

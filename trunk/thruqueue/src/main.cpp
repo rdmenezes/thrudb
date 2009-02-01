@@ -29,11 +29,11 @@
 #include "ThruLogging.h"
 
 using namespace std;
-using namespace facebook::thrift;
-using namespace facebook::thrift::concurrency;
-using namespace facebook::thrift::protocol;
-using namespace facebook::thrift::transport;
-using namespace facebook::thrift::server;
+using namespace apache::thrift;
+using namespace apache::thrift::concurrency;
+using namespace apache::thrift::protocol;
+using namespace apache::thrift::transport;
+using namespace apache::thrift::server;
 
 using namespace boost;
 using namespace thruqueue;

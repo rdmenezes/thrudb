@@ -47,7 +47,7 @@ class BloomBackend : public ThrudocPassthruBackend
 
     unsigned int filter_space;
 
-    facebook::thrift::concurrency::Mutex mutex;
+    apache::thrift::concurrency::Mutex mutex;
 };
 
 #endif

@@ -4,7 +4,7 @@
 
 using std::string;
 
-using namespace facebook::thrift::concurrency;
+using namespace apache::thrift::concurrency;
 
 ConfigFile * ConfigFile::pInstance = 0;
 Mutex        ConfigFile::_mutex    = Mutex();

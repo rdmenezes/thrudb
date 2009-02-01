@@ -23,7 +23,7 @@
  *Holds named array of active queues.
  *
  **/
-class _QueueManager : public facebook::thrift::concurrency::Runnable
+class _QueueManager : public apache::thrift::concurrency::Runnable
 {
  public:
     void   startup();
@@ -37,13 +37,13 @@ class _QueueManager : public facebook::thrift::concurrency::Runnable
  private:
     _QueueManager() : started(false){};
     void   run();
-    facebook::thrift::concurrency::Mutex mutex;
+    apache::thrift::concurrency::Mutex mutex;
 
     std::map<std::string, boost::shared_ptr<Queue> > queue_cache;
 
     bool   started;
     static _QueueManager* pInstance;
-    static facebook::thrift::concurrency::Mutex _mutex;
+    static apache::thrift::concurrency::Mutex _mutex;
 };
 
 //Singleton shortcut

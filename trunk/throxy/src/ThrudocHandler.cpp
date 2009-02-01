@@ -15,7 +15,7 @@ using namespace boost;
 using namespace thrudoc;
 using namespace log4cxx;
 using namespace std;
-using namespace facebook::thrift::protocol;
+using namespace apache::thrift::protocol;
 
 LoggerPtr ThrudocHandler::logger (Logger::getLogger ("ThrudocHandler"));
 

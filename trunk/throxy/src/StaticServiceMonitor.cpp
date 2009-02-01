@@ -5,7 +5,7 @@ using namespace std;
 using namespace log4cxx;
 using namespace boost;
 
-using namespace facebook::thrift;
+using namespace apache::thrift;
 
 LoggerPtr StaticServiceMonitor::logger(Logger::getLogger("StaticServiceMonitor"));
 

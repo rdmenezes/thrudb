@@ -45,7 +45,7 @@ class Queue
     void bufferMessagesFromLog();
 
 
-    facebook::thrift::concurrency::Mutex mutex;
+    apache::thrift::concurrency::Mutex mutex;
 
     std::set<std::string>   unique_keys;
 
@@ -60,13 +60,13 @@ class Queue
 
 
     bool is_pruning;
-    boost::shared_ptr<facebook::thrift::transport::TFileTransport> queue_log;
-    boost::shared_ptr<facebook::thrift::transport::TFileTransport> queue_log_reader;
+    boost::shared_ptr<apache::thrift::transport::TFileTransport> queue_log;
+    boost::shared_ptr<apache::thrift::transport::TFileTransport> queue_log_reader;
 
-    boost::shared_ptr<facebook::thrift::transport::TMemoryBuffer>  transport;
+    boost::shared_ptr<apache::thrift::transport::TMemoryBuffer>  transport;
     boost::shared_ptr<thruqueue::QueueLogClient>                   queue_log_client;
 
-    boost::shared_ptr<facebook::thrift::transport::TFileProcessor> queue_log_processor;
+    boost::shared_ptr<apache::thrift::transport::TFileProcessor> queue_log_processor;
 
 
     unsigned int                msg_buffer_size;

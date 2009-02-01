@@ -6,10 +6,10 @@ using namespace std;
 using namespace log4cxx;
 using namespace boost;
 
-using namespace facebook::thrift;
-using namespace facebook::thrift::transport;
-using namespace facebook::thrift::protocol;
-using namespace facebook::thrift::concurrency;
+using namespace apache::thrift;
+using namespace apache::thrift::transport;
+using namespace apache::thrift::protocol;
+using namespace apache::thrift::concurrency;
 
 LoggerPtr ServiceNode::logger (Logger::getLogger ("ServiceNode"));
 
@@ -45,7 +45,7 @@ bool ServiceNode::ping()
         return true;
 
         //Call ping() this doesn't need to exist
-        protocol->writeMessageBegin("ping", facebook::thrift::protocol::T_CALL, 0);
+        protocol->writeMessageBegin("ping", apache::thrift::protocol::T_CALL, 0);
 
         //protocol->writeStructBegin("Thrudoc_ping_args");
         //protocol->writeFieldStop();
@@ -60,18 +60,18 @@ bool ServiceNode::ping()
         LOG4CXX_INFO(logger,"Connected to remote host");
         int32_t rseqid = 0;
         std::string fname;
-        facebook::thrift::protocol::TMessageType mtype = facebook::thrift::protocol::T_CALL;
+        apache::thrift::protocol::TMessageType mtype = apache::thrift::protocol::T_CALL;
 
         //Make sure the call passed back something
         protocol->readMessageBegin(fname, mtype, rseqid);
-        protocol->skip(facebook::thrift::protocol::T_STRUCT);
+        protocol->skip(apache::thrift::protocol::T_STRUCT);
         protocol->readMessageEnd();
         protocol->getTransport()->readEnd();
 
 
 
-        if(mtype == facebook::thrift::protocol::T_EXCEPTION ||
-           mtype == facebook::thrift::protocol::T_REPLY ){
+        if(mtype == apache::thrift::protocol::T_EXCEPTION ||
+           mtype == apache::thrift::protocol::T_REPLY ){
 
             //this means the service is working
             last_ping = Util::currentTime();

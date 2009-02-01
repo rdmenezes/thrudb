@@ -13,7 +13,7 @@
 #include <string>
 
 
-class ThruFileReaderTransport : public facebook::thrift::transport::TTransport
+class ThruFileReaderTransport : public apache::thrift::transport::TTransport
 {
     public:
         ThruFileReaderTransport(std::string path);
@@ -29,7 +29,7 @@ class ThruFileReaderTransport : public facebook::thrift::transport::TTransport
 // NOTE: we don't implement a flush b/c the gen'd clients are calling it
 // constantly, and if we did that would make everything sync, annoying, but
 // can't do anything about it.
-class ThruFileWriterTransport : public facebook::thrift::transport::TTransport
+class ThruFileWriterTransport : public apache::thrift::transport::TTransport
 {
     public:
         ThruFileWriterTransport(std::string path, uint32_t sync_wait);
@@ -43,7 +43,7 @@ class ThruFileWriterTransport : public facebook::thrift::transport::TTransport
         int fd;
         pthread_t fsync_thread;
         uint32_t sync_wait;
-        facebook::thrift::concurrency::Mutex write_mutex;
+        apache::thrift::concurrency::Mutex write_mutex;
 
         static void * start_sync_thread (void * ptr);
         void fsync_thread_run ();
@@ -59,13 +59,13 @@ class ThruFileProcessor
          * @param protocolFactory protocol factory
          * @param inputTransport file transport
          */
-        ThruFileProcessor(boost::shared_ptr<facebook::thrift::TProcessor> processor,
-                        boost::shared_ptr<facebook::thrift::protocol::TProtocolFactory> protocolFactory,
+        ThruFileProcessor(boost::shared_ptr<apache::thrift::TProcessor> processor,
+                        boost::shared_ptr<apache::thrift::protocol::TProtocolFactory> protocolFactory,
                         boost::shared_ptr<ThruFileReaderTransport> inputTransport);
 
-        ThruFileProcessor(boost::shared_ptr<facebook::thrift::TProcessor> processor,
-                        boost::shared_ptr<facebook::thrift::protocol::TProtocolFactory> inputProtocolFactory,
-                        boost::shared_ptr<facebook::thrift::protocol::TProtocolFactory> outputProtocolFactory,
+        ThruFileProcessor(boost::shared_ptr<apache::thrift::TProcessor> processor,
+                        boost::shared_ptr<apache::thrift::protocol::TProtocolFactory> inputProtocolFactory,
+                        boost::shared_ptr<apache::thrift::protocol::TProtocolFactory> outputProtocolFactory,
                         boost::shared_ptr<ThruFileReaderTransport> inputTransport);
 
         /**
@@ -76,10 +76,10 @@ class ThruFileProcessor
          * @param inputTransport input file transport
          * @param output output transport
          */
-        ThruFileProcessor(boost::shared_ptr<facebook::thrift::TProcessor> processor,
-                        boost::shared_ptr<facebook::thrift::protocol::TProtocolFactory> protocolFactory,
+        ThruFileProcessor(boost::shared_ptr<apache::thrift::TProcessor> processor,
+                        boost::shared_ptr<apache::thrift::protocol::TProtocolFactory> protocolFactory,
                         boost::shared_ptr<ThruFileReaderTransport> inputTransport,
-                        boost::shared_ptr<facebook::thrift::transport::TTransport> outputTransport);
+                        boost::shared_ptr<apache::thrift::transport::TTransport> outputTransport);
 
         /**
          * processes events from the file
@@ -91,11 +91,11 @@ class ThruFileProcessor
 
     private:
 
-        boost::shared_ptr<facebook::thrift::TProcessor> processor_;
-        boost::shared_ptr<facebook::thrift::protocol::TProtocolFactory> inputProtocolFactory_;
-        boost::shared_ptr<facebook::thrift::protocol::TProtocolFactory> outputProtocolFactory_;
+        boost::shared_ptr<apache::thrift::TProcessor> processor_;
+        boost::shared_ptr<apache::thrift::protocol::TProtocolFactory> inputProtocolFactory_;
+        boost::shared_ptr<apache::thrift::protocol::TProtocolFactory> outputProtocolFactory_;
         boost::shared_ptr<ThruFileReaderTransport> inputTransport_;
-        boost::shared_ptr<facebook::thrift::transport::TTransport> outputTransport_;
+        boost::shared_ptr<apache::thrift::transport::TTransport> outputTransport_;
 };
 
 #endif // _THRIFT_TRANSPORT_TFILETRANSPORT_H_

@@ -63,10 +63,10 @@ class MyThrudocClient : public thrudoc::ThrudocClient
 {
  public:
  MyThrudocClient():
-    ThrudocClient(boost::shared_ptr<facebook::thrift::protocol::TProtocol>()){};
+    ThrudocClient(boost::shared_ptr<apache::thrift::protocol::TProtocol>()){};
 
     //Let me reuse this client for each connection
-    void setProtocol(boost::shared_ptr<facebook::thrift::protocol::TProtocol> p){
+    void setProtocol(boost::shared_ptr<apache::thrift::protocol::TProtocol> p){
         this->piprot_ = p;
         poprot_ = p;
         iprot_ = p.get();

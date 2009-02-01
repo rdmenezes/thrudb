@@ -47,7 +47,7 @@ class LogBackend : public ThrudexPassthruBackend
     private:
 
         // this will be used to create the event message
-        boost::shared_ptr<facebook::thrift::transport::TMemoryBuffer> msg_transport;
+        boost::shared_ptr<apache::thrift::transport::TMemoryBuffer> msg_transport;
         boost::shared_ptr<thrudex::ThrudexClient> msg_client;
         Event create_event (const std::string &msg);
 

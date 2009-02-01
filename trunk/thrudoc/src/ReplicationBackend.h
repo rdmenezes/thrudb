@@ -81,7 +81,7 @@ class ReplicationBackend : public ThrudocPassthruBackend
 
         std::map<std::string, boost::shared_ptr<ReplicationWait> >
             pending_waits;
-        facebook::thrift::concurrency::ReadWriteMutex pending_waits_mutex;
+        apache::thrift::concurrency::ReadWriteMutex pending_waits_mutex;
 
         void listener_thread_run ();
         std::string send_orig_message_and_wait

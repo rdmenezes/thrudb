@@ -41,7 +41,7 @@ class CLuceneBackend : public ThrudexBackend
     std::map<std::string, boost::shared_ptr<CLuceneIndex> > index_cache;
 
     boost::shared_ptr<lucene::analysis::Analyzer> analyzer;
-    facebook::thrift::concurrency::ReadWriteMutex mutex;
+    apache::thrift::concurrency::ReadWriteMutex mutex;
 };
 
 #endif

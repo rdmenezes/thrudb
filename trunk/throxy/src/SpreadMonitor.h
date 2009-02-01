@@ -20,7 +20,7 @@
 #include <string>
 
 
-class SpreadMonitor : public facebook::thrift::concurrency::Runnable
+class SpreadMonitor : public apache::thrift::concurrency::Runnable
 {
  public:
     SpreadMonitor();
