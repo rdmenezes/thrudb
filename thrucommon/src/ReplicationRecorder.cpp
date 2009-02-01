@@ -17,8 +17,8 @@
 #define REPLAY_MESSAGE_TYPE 101
 
 using namespace boost;
-using namespace facebook::thrift::protocol;
-using namespace facebook::thrift::transport;
+using namespace apache::thrift::protocol;
+using namespace apache::thrift::transport;
 using namespace std;
 
 struct RecordedMessage

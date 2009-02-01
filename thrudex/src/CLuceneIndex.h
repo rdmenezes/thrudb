@@ -40,7 +40,7 @@ class UpdateFilter;
  *
  *Redo logging is employed elsewhere so we can recover if the system crashes before a sync has occurred.
  **/
-class CLuceneIndex : public facebook::thrift::concurrency::Runnable
+class CLuceneIndex : public apache::thrift::concurrency::Runnable
 {
  public:
     CLuceneIndex(const std::string &index_root,
@@ -62,9 +62,9 @@ class CLuceneIndex : public facebook::thrift::concurrency::Runnable
     void sync(bool force = false);
 
     boost::shared_ptr<lucene::search::MultiSearcher>         getSearcher();
-    boost::shared_ptr<facebook::thrift::concurrency::Thread> monitor_thread;
+    boost::shared_ptr<apache::thrift::concurrency::Thread> monitor_thread;
 
-    facebook::thrift::concurrency::Mutex             mutex;
+    apache::thrift::concurrency::Mutex             mutex;
 
     const std::string                                index_root;
     const std::string                                index_name;

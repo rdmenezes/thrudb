@@ -18,10 +18,10 @@
 #include <errno.h>
 
 using namespace boost;
-using namespace facebook::thrift;
-using namespace facebook::thrift::concurrency;
-using namespace facebook::thrift::protocol;
-using namespace facebook::thrift::transport;
+using namespace apache::thrift;
+using namespace apache::thrift::concurrency;
+using namespace apache::thrift::protocol;
+using namespace apache::thrift::transport;
 using namespace std;
 
 // TODO: what about the case where we're destruting and get a write from

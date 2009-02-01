@@ -17,7 +17,7 @@
 #include "BloomBackend.h"
 #include "bloom_filter.hpp"
 
-using namespace facebook::thrift::concurrency;
+using namespace apache::thrift::concurrency;
 using namespace thrudoc;
 using namespace boost;
 using namespace std;

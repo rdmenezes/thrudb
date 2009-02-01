@@ -114,7 +114,7 @@ protected:
 
 private:
         static ConfigFile *pInstance;
-        static facebook::thrift::concurrency::Mutex _mutex;
+        static apache::thrift::concurrency::Mutex _mutex;
         string filename;
 
 

@@ -11,7 +11,7 @@
 #include <errmsg.h>
 
 using namespace thrudoc;
-using namespace facebook::thrift::concurrency;
+using namespace apache::thrift::concurrency;
 
 using namespace mysql;
 using namespace std;

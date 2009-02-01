@@ -18,7 +18,7 @@ using namespace thrudex;
 
 
 using namespace boost;
-using namespace facebook::thrift::concurrency;
+using namespace apache::thrift::concurrency;
 
 using namespace lucene::index;
 using namespace lucene::store;

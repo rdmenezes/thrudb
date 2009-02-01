@@ -15,7 +15,7 @@ class ServiceNode
     ~ServiceNode();
 
     bool    ping();
-    boost::shared_ptr<facebook::thrift::protocol::TProtocol> getConnection();
+    boost::shared_ptr<apache::thrift::protocol::TProtocol> getConnection();
         boost::shared_ptr<ServiceNode>                       clone(); // makin copies
 
     const std::string name;
@@ -30,9 +30,9 @@ class ServiceNode
     bool        active;
     uint64_t    last_ping;
 
-    boost::shared_ptr<facebook::thrift::transport::TSocket>          socket;
-    boost::shared_ptr<facebook::thrift::transport::TFramedTransport> transport;
-    boost::shared_ptr<facebook::thrift::protocol::TProtocol>         protocol;
+    boost::shared_ptr<apache::thrift::transport::TSocket>          socket;
+    boost::shared_ptr<apache::thrift::transport::TFramedTransport> transport;
+    boost::shared_ptr<apache::thrift::protocol::TProtocol>         protocol;
 
     static log4cxx::LoggerPtr logger;
 
@@ -51,7 +51,7 @@ class ServicePartition
     void                           delServiceNode( std::string name );
     boost::shared_ptr<ServiceNode> getServiceNode( std::string name );
 
-    boost::shared_ptr<facebook::thrift::protocol::TProtocol>  getConnection(bool master);
+    boost::shared_ptr<apache::thrift::protocol::TProtocol>  getConnection(bool master);
 
     const std::string name;
 
@@ -78,7 +78,7 @@ class ServiceMonitor
     void                                delServicePartition( std::string name );
     boost::shared_ptr<ServicePartition> getServicePartition( std::string name );
 
-    std::vector< boost::shared_ptr<facebook::thrift::protocol::TProtocol> > getConnections( bool masters = false );
+    std::vector< boost::shared_ptr<apache::thrift::protocol::TProtocol> > getConnections( bool masters = false );
 
  protected:
     std::map< std::string, boost::shared_ptr<ServicePartition> > service_partitions;

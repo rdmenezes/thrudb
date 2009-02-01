@@ -39,7 +39,7 @@ class FileLogger
         boost::shared_ptr<ThruFileWriterTransport> log_transport;
         boost::shared_ptr<EventLogClient> log_client;
 
-        facebook::thrift::concurrency::Mutex log_mutex;
+        apache::thrift::concurrency::Mutex log_mutex;
         std::string log_directory;
         std::string log_prefix;
         boost::filesystem::fstream index_file;
