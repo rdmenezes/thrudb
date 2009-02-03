@@ -8,6 +8,20 @@ pkgconfig_DATA = thrudex.pc
 
 include_thrudexdir = $(includedir)/thrudex
 
+include_thrudex_HEADERS = \
+		  gen-cpp/Thrudex.h			\
+		  gen-cpp/Thrudex_types.h		\
+		  gen-cpp/Thrudex_constants.h		\
+		  app_helpers.h 			\
+		  ThrudexHandler.h			\
+		  LogBackend.h   			\
+		  ThrudexBackend.h			\
+		  CLuceneBackend.h			\
+		  CLuceneRAMDirectory.h                 \
+		  CLuceneIndex.h			\
+		  StatsBackend.h 			\
+		  UpdateFilter.h
+
 libthrudex_la_SOURCES = \
 		  gen-cpp/Thrudex.cpp			\
 		  gen-cpp/Thrudex_types.cpp		\
