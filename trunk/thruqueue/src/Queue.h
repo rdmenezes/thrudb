@@ -27,47 +27,56 @@
 
 #include "QueueLog.h"
 
+
 class Queue
 {
  public:
-    Queue(const std::string name, bool unique = false);
+    Queue(const std::string name);
 
-    void         enqueue(const thruqueue::QueueMessage &mess);
-    void         enqueue(const std::string &mess, bool priority = false);
-    std::string  dequeue();
-    std::string  peek();
+    void                     sendMessage(const thruqueue::QueueInputMessage &mess);
+    void                     sendMessage(const std::string &mess);
+    thruqueue::QueueMessage  readMessage(const int32_t &lock_time);
+    void                     deleteMessage(const std::string &message_id);
 
     unsigned int length();
-    void         flush();
+    void         clear();
+    void         push_back(const thruqueue::QueueInputMessage &m);
 
- private:
     void pruneLogFile();
+ private:
+
     void bufferMessagesFromLog();
 
 
     apache::thrift::concurrency::Mutex mutex;
 
-    std::set<std::string>   unique_keys;
+    //message_id, expire_time
+    std::map<std::string, thruqueue::QueueOutputMessage> locked_messages;
 
-    std::deque<thruqueue::QueueMessage> queue;
-    std::deque<std::string>             pruning_queue;
-    std::deque<std::string>             priority_queue;
+    std::deque<thruqueue::QueueInputMessage> queue;
+
+
 
     std::string             queue_name;
-    bool                    is_unique;
-    std::string             queue_log_file;
+    std::string             queue_input_log_file;
+    std::string             queue_output_log_file;
     unsigned int            queue_length;
 
 
     bool is_pruning;
-    boost::shared_ptr<apache::thrift::transport::TFileTransport> queue_log;
-    boost::shared_ptr<apache::thrift::transport::TFileTransport> queue_log_reader;
+
+    //A input log holds all send messages
+    boost::shared_ptr<apache::thrift::transport::TFileTransport> queue_input_log;
+    boost::shared_ptr<apache::thrift::transport::TFileTransport> queue_input_log_reader;
+
+    //A output log holds all read and delete messages
+    boost::shared_ptr<apache::thrift::transport::TFileTransport> queue_output_log;
+
 
     boost::shared_ptr<apache::thrift::transport::TMemoryBuffer>  transport;
     boost::shared_ptr<thruqueue::QueueLogClient>                   queue_log_client;
 
-    boost::shared_ptr<apache::thrift::transport::TFileProcessor> queue_log_processor;
-
+    boost::shared_ptr<apache::thrift::transport::TFileProcessor> queue_input_log_processor;
 
     unsigned int                msg_buffer_size;
 };
