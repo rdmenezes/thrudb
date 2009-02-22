@@ -18,20 +18,23 @@ class ThruqueueHandler : virtual public thruqueue::ThruqueueIf {
 
     void ping(){};
 
-    void create(const std::string& queue_name, const bool unique);
+    void createQueue(const std::string& queue_name);
 
-    void destroy(const std::string& queue_name);
+    void deleteQueue(const std::string& queue_name);
 
-    void enqueue(const std::string& queue_name, const std::string& mess, const bool priority);
+    void listAllQueues(std::vector<std::string> &_return);
 
-    void dequeue(std::string& _return, const std::string& queue_name);
+    void sendMessage(const std::string& queue_name, const std::string& mess);
 
-    void flush(const std::string& queue_name);
+    void readMessage(thruqueue::QueueMessage& _return, const std::string& queue_name, int32_t lock_secs);
 
-    void peek(std::string& _return, const std::string& queue_name);
+    void deleteMessage( const std::string& queue_name, const std::string &message_id );
 
-    int32_t length(const std::string& queue_name);
+    void clearQueue(const std::string& queue_name);
 
+    int32_t queueLength(const std::string& queue_name);
+
+    void admin(std::string &_return, const std::string &op, const std::string &data);
 };
 
 #endif

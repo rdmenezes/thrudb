@@ -28,8 +28,8 @@ class _QueueManager : public apache::thrift::concurrency::Runnable
  public:
     void   startup();
 
-    void   createQueue ( const std::string &id, bool unique = false );
-    void   destroyQueue( const std::string &id );
+    void   createQueue ( const std::string &id );
+    void   deleteQueue( const std::string &id );
     boost::shared_ptr<Queue> getQueue( const std::string &id );
 
     static _QueueManager* instance();
@@ -42,6 +42,7 @@ class _QueueManager : public apache::thrift::concurrency::Runnable
     std::map<std::string, boost::shared_ptr<Queue> > queue_cache;
 
     bool   started;
+
     static _QueueManager* pInstance;
     static apache::thrift::concurrency::Mutex _mutex;
 };

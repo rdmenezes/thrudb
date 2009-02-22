@@ -13,48 +13,64 @@
 using namespace boost;
 using namespace thruqueue;
 
-void ThruqueueHandler::create(const std::string& queue_name, const bool unique)
+void ThruqueueHandler::createQueue(const std::string& queue_name)
 {
-    QueueManager->createQueue(queue_name, unique);
+    QueueManager->createQueue(queue_name);
 }
 
-void ThruqueueHandler::destroy(const std::string& queue_name)
+void ThruqueueHandler::deleteQueue(const std::string& queue_name)
 {
-    QueueManager->destroyQueue(queue_name);
+    QueueManager->deleteQueue(queue_name);
 }
 
-void ThruqueueHandler::enqueue(const std::string& queue_name, const std::string& mess, const bool priority)
+void ThruqueueHandler::listAllQueues(std::vector<std::string> &_return)
 {
-    shared_ptr<Queue> queue = QueueManager->getQueue(queue_name);
 
-    queue->enqueue(mess,priority);
+
 }
 
-void ThruqueueHandler::dequeue(std::string& _return, const std::string& queue_name)
-{
-    shared_ptr<Queue> queue = QueueManager->getQueue(queue_name);
-
-    _return = queue->dequeue();
-}
-
-void ThruqueueHandler::flush(const std::string& queue_name)
+void ThruqueueHandler::sendMessage(const std::string& queue_name, const std::string& mess)
 {
     shared_ptr<Queue> queue = QueueManager->getQueue(queue_name);
 
-    queue->flush();
 
+
+    queue->sendMessage(mess);
 }
 
-void ThruqueueHandler::peek(std::string& _return, const std::string& queue_name)
+void ThruqueueHandler::readMessage(QueueMessage& _return, const std::string& queue_name, int32_t lock_secs)
 {
     shared_ptr<Queue> queue = QueueManager->getQueue(queue_name);
 
-    _return = queue->peek();
+    _return = queue->readMessage(lock_secs);
 }
 
-int32_t ThruqueueHandler::length(const std::string& queue_name)
+void ThruqueueHandler::deleteMessage(const std::string &queue_name, const std::string &message_id)
+{
+    shared_ptr<Queue> queue = QueueManager->getQueue(queue_name);
+
+    queue->deleteMessage(message_id);
+}
+
+void ThruqueueHandler::clearQueue(const std::string& queue_name)
+{
+    shared_ptr<Queue> queue = QueueManager->getQueue(queue_name);
+
+    queue->clear();
+
+}
+
+
+int32_t ThruqueueHandler::queueLength(const std::string& queue_name)
 {
     shared_ptr<Queue> queue = QueueManager->getQueue(queue_name);
 
     return queue->length();
+}
+
+
+void ThruqueueHandler::admin(std::string &_return, const std::string &op, const std::string &data)
+{
+
+
 }

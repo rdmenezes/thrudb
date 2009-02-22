@@ -6,7 +6,6 @@
  * http://thrudb.googlecode.com
  *
  **/
-
 #ifdef HAVE_CONFIG_H
 #include "thruqueue_config.h"
 #endif
@@ -36,114 +35,202 @@ using namespace apache::thrift::protocol;
 using namespace thruqueue;
 
 
+
+/**
+ *
+ * A thruqueue is a series of messages logged to a thrift file transport.
+ * This trasport is processed sequentially and has a
+ * live compaction routine which runs to shrink the log.
+ * The compaction routine can be configured to run based on the size of the processed log.
+ *
+ * Every log message contains the some standard info about the queue state
+ * primarily to help speed up the compaction process.
+ *
+ * The queue messages are read and locked while a worker is performing a task on the message.
+ * And when the task is completed sucessfully the worker must explicitly delete the message,
+ * otherwise it will be placed back on the queue.
+ *
+ * This means we need to track the outstanding read messages that have not been deleted and know what chunks they live in.
+ * so we can propagate them to the next logfile during compaction. to do this we keep another log of reads and deletes.
+ *
+ * Also, on startup we need to jump to the last known read position and, if compaction is required,
+ * we write all the unread messages to the new log and build a list of the read but non-deleted
+ * messages and their locations in the log.
+ *
+ * last   read  chunk.
+ * last   delete chunk.
+ * last   send chunk.
+ * last   compaction timestamp.
+ * we know the current chunk of the log reader.
+ * (encode the expire timestamp into the message_id!)
+ **/
+
+
+
+/**
+ *This is used to gather the latest queue stats from the tail of
+ *the log. the tricky part here is starting back enough to capture the final message.
+ *(i think) there is a chance this could fail if the final message is huge!
+ *
+ **/
 class PruneCollector : virtual public QueueLogIf
 {
 public:
     PruneCollector() :
-        dequeue_count(0),last_flush(0){};
+        queue_length(-1),last_read_chunk(-1),last_timestamp(-1){};
 
-    void log(const QueueMessage &m){
-
-        switch( m.op ){
-            case ENQUEUE:
-                prune_cache[m.message_id]++; break;
-            case DEQUEUE:
-                prune_cache[m.message_id]--;
-
-                //Keep tabs on number on how dirty the
-                //current log is...
-                dequeue_count++;
-                break;
-            case FLUSH:
-                prune_cache.clear();
-                last_flush = m.timestamp;
-                break;
-            default:
-                break;
-        };
+    void log_send(const QueueInputMessage &m){
+        queue_length   = m.queue_length;
+        last_timestamp = m.timestamp;
     }
 
-    map<string, int>  prune_cache;
-    int               dequeue_count;
-    time_t            last_flush;
+    void log_read(const QueueOutputMessage &m){
+        last_read_chunk = m.last_read_chunk;
+        last_read_id    = m.message_id;
+    }
+
+    void log_delete(const QueueOutputMessage &m){
+
+        if(m.timestamp > last_timestamp){
+            queue_length   = m.queue_length;
+            last_timestamp = m.timestamp;
+        }
+
+    }
+
+    int32_t           queue_length;
+    int32_t           last_read_chunk;
+    std::string       last_read_id;
+    int32_t           last_timestamp;
 };
 
 
+
+
+/**
+ * This class handles the copying of good messages to a new log.
+ * it does this by calling a fake client to a memory buffer then
+ * saving the string to the log.
+ *
+ * this handles is called from the log processor for queue inputs
+ * and queue outputs.
+ **/
 class PruneHandler : virtual public QueueLogIf
 {
 public:
-    PruneHandler(shared_ptr<TFileTransport> _prune_log, map<string, int> &_prune_cache, bool _is_unique) :
-        prune_log(_prune_log), prune_cache(_prune_cache), is_unique(_is_unique), queue_length(0)
+    PruneHandler(shared_ptr<TFileTransport> _send_log, shared_ptr<TFileTransport> _read_log,
+                 apache::thrift::concurrency::Mutex &mutex) :
+        send_log(_send_log), read_log(_read_log), queue_length(0)
     {
         transport   = shared_ptr<TMemoryBuffer>(new TMemoryBuffer());
         shared_ptr<TProtocol>      p(new TBinaryProtocol(transport));
         faux_client = shared_ptr<QueueLogClient>(new QueueLogClient(p));
     };
 
-    void log(const QueueMessage &m )
+
+    void log_read(const QueueOutputMessage &m )
+    {
+        read_cache[m.message_id] = m;
+    }
+
+    void log_delete(const QueueOutputMessage &m )
     {
 
-        if(m.op == ENQUEUE && prune_cache[m.message_id] > 0 ){
+        if(read_cache.count(m.message_id)){
+            read_cache.erase(m.message_id);
+            delete_cache[m.message_id]++;
+        }
+    }
 
-            if(!is_unique || (is_unique && unique_keys.find(m.key) == unique_keys.end())){
+    void log_send(const QueueInputMessage &m )
+    {
+
+        //skip any messages that have been deleted
+        if(delete_cache.count(m.message_id))
+            return;
 
 
-                faux_client->send_log(m);
+        //re-add messages that have expired
+        //otherwise keep them in the read log
+        if(read_cache.count(m.message_id)){
+
+            QueueOutputMessage m_read = read_cache[m.message_id];
+
+            int32_t now = time(NULL);
+            if(now < m_read.timestamp + m_read.lock_time){
+
+                faux_client->send_log_read(m_read);
                 string s = transport->getBufferAsString();
 
                 transport->resetBuffer();
 
                 //write it to log
-                prune_log->write( (uint8_t *)s.c_str(), (uint32_t) s.length() );
-
-                queue_length++;
-
-                if(is_unique)
-                    unique_keys.insert(m.key);
+                read_log->write( (uint8_t *)s.c_str(), (uint32_t) s.length() );
             }
         }
+
+
+
+        faux_client->send_log_send(m);
+        string s = transport->getBufferAsString();
+
+        transport->resetBuffer();
+
+        //write it to log
+        send_log->write( (uint8_t *)s.c_str(), (uint32_t) s.length() );
     }
 
 
-    shared_ptr<TFileTransport> prune_log;
+
+    shared_ptr<TFileTransport> send_log;
+    shared_ptr<TFileTransport> read_log;
     shared_ptr<QueueLogClient> faux_client;
     shared_ptr<TMemoryBuffer>  transport;
 
-    map<string, int>  prune_cache;
+    //tracks messages that were read/deleted
+    map<string,QueueOutputMessage>  read_cache;
+    map<string,int>                 delete_cache;
 
-    bool              is_unique;
-    set<string>       unique_keys;
     unsigned int      queue_length;
 };
 
 
+/**
+ *This interface tails the log and adds messages to the in-memory queue
+ *
+ **/
 class QueueLogReader : virtual public QueueLogIf
 {
 public:
     QueueLogReader( Queue *_queue )
         : queue(_queue) {};
 
-    void log(const QueueMessage &m ){
+    void log_send(const QueueInputMessage &m ){
+        queue->push_back(m);
+    }
 
-        assert(m.op != FLUSH);  //should never encounter a flush
+    void log_read(const QueueOutputMessage &m){
 
-        if(m.op == ENQUEUE)
-            queue->enqueue(m);
+    }
+
+    void log_delete(const QueueOutputMessage &m){
+
     }
 
     Queue *queue;
 };
 
 
-Queue::Queue(const string name, bool unique)
-    : queue_name(name), is_unique(unique), queue_length(0), is_pruning(false), msg_buffer_size(200)
+Queue::Queue(const string name)
+    : queue_name(name), queue_length(0), is_pruning(false), msg_buffer_size(200)
 {
     string doc_root    = ConfigManager->read<string>("DOC_ROOT");
 
     if( !directory_exists(doc_root) )
         throw std::runtime_error("DOC_ROOT is not valid (check config)");
 
-    queue_log_file = doc_root + "/"+queue_name+".log";
+    queue_input_log_file  = doc_root + "/"+queue_name+"_input.log";
+    queue_output_log_file = doc_root + "/"+queue_name+"_output.log";
 
 
     //Create the faux log client
@@ -151,281 +238,311 @@ Queue::Queue(const string name, bool unique)
     boost::shared_ptr<TProtocol>  p(new TBinaryProtocol(transport));
     queue_log_client             = shared_ptr<QueueLogClient>(new QueueLogClient(p));
 
+
+    //Create input log
+    queue_input_log  = shared_ptr<TFileTransport>(new TFileTransport(queue_input_log_file) );
+    queue_input_log->setFlushMaxUs(100);
+
+
+    //Create log processor to read from
+    queue_input_log_reader       = shared_ptr<TFileTransport>(new TFileTransport(queue_input_log_file,true) );
+    shared_ptr<TProtocolFactory>   pfactory(new TBinaryProtocolFactory());
+    shared_ptr<QueueLogReader>     qlr(new QueueLogReader(this));
+    shared_ptr<QueueLogProcessor>  proc    (new QueueLogProcessor(qlr));
+    queue_input_log_processor    = shared_ptr<TFileProcessor>(new TFileProcessor(proc,pfactory,queue_input_log_reader));
+
+
+    //Create output log
+    queue_output_log  = shared_ptr<TFileTransport>(new TFileTransport(queue_output_log_file) );
+
+    queue_output_log->setFlushMaxUs(100);
+    queue_output_log->seekToEnd();
+
+    //check if compaction is required on startup
     this->pruneLogFile();
 }
 
+
+
 void Queue::pruneLogFile()
 {
-    T_DEBUG("Entering pruneLogFile(%s)",queue_name.c_str());
+    T_DEBUG("In pruneLogFile %s",queue_name.c_str());
 
-    //First check that log file exists
-    //If it does not then just create it and leave
-    if( !file_exists( queue_log_file ) ){
-
-        T_DEBUG("No Log exists for this queue creating one");
-
-        queue_log                    = shared_ptr<TFileTransport>(new TFileTransport(queue_log_file) );
-        queue_log->setFlushMaxUs(100);
-
-
-        //Create log processor to read from
-        queue_log_reader             = shared_ptr<TFileTransport>(new TFileTransport(queue_log_file,true) );
-        shared_ptr<TProtocolFactory>   pfactory(new TBinaryProtocolFactory());
-        shared_ptr<QueueLogReader>     qlr(new QueueLogReader(this));
-        shared_ptr<QueueLogProcessor>  proc    (new QueueLogProcessor(qlr));
-        queue_log_processor          = shared_ptr<TFileProcessor>(new TFileProcessor(proc,pfactory,queue_log_reader));
-
+    //another thread?
+    if(is_pruning)
         return;
-    }
 
-
-    //Notify other threads that we are about to prune
-    {
-        Guard g(mutex);
-        is_pruning = true;
-        pruning_queue.clear(); //just incase any are lingering
-
-        if( queue_log != shared_ptr<TFileTransport>() ){
-            queue_log->flush();
-            queue_log->close();
-        }
-    }
-
-
-    //Now prune the log
+    //First we replay the tail end of the queue log and collect last know reader position
+    shared_ptr<PruneCollector> pc(new PruneCollector());
     try{
 
-        shared_ptr<PruneCollector> pc(new PruneCollector());
 
-        T_DEBUG("Collecting Messages()");
+        T_DEBUG("Finding location of last read");
+        {
+            Guard g(mutex);
+            queue_input_log->flush();
+            queue_output_log->flush();
+        }
 
-        //First we replay the queue log and collect the messages that are no longer needed
         {
             //init new log reader
-            shared_ptr<TFileTransport>           plog( new TFileTransport(queue_log_file,true) );
+            shared_ptr<TFileTransport>           in_log( new TFileTransport(queue_input_log_file,true) );
+            shared_ptr<TFileTransport>           out_log( new TFileTransport(queue_output_log_file,true) );
             shared_ptr<QueueLogProcessor>        proc( new QueueLogProcessor(pc));
             shared_ptr<TProtocolFactory>         pfactory(new TBinaryProtocolFactory());
 
-            TFileProcessor fileProcessor(proc,pfactory,plog);
-
-            fileProcessor.process(0,false);
-        }
-
-
-        //backup the old log
-        char buf[512];
-        sprintf(buf,".%d",(int)time(NULL));
-        string backup_log = queue_log_file + buf;
-
-        int rc = rename(queue_log_file.c_str(),backup_log.c_str());
-
-        assert(rc == 0); //FIXME: better have worked
-
-        T_DEBUG("Populating new log()");
-
-        //Replay old log to create a new pruned log
-        {
-
-            //Log file to process
-            shared_ptr<TFileTransport>           plog_old(new TFileTransport(backup_log,true) );
-
-
-            //New log to create
-            queue_log        =    shared_ptr<TFileTransport>(new TFileTransport(queue_log_file) );
-            queue_log->setFlushMaxUs(100);
-
-            //Prune handler does the work
-            shared_ptr<TProtocol>                proto   (new TBinaryProtocol(plog_old));
-            shared_ptr<PruneHandler>             ph      (new PruneHandler(queue_log,pc->prune_cache,is_unique));
-            shared_ptr<QueueLogProcessor>        proc    (new QueueLogProcessor(ph));
-            shared_ptr<TProtocolFactory>         pfactory(new TBinaryProtocolFactory());
-
-            TFileProcessor fileProcessor(proc,pfactory,plog_old);
-            fileProcessor.process(0,false);
-
-            //Log file should be pruned. now lets populate our meta info
-            {
-                Guard g(mutex);
-                is_pruning = false;
-                T_DEBUG("Kept Unread Messages()");
-                this->queue_length = ph->queue_length;
-                this->unique_keys  = ph->unique_keys;
-                this->queue.clear();
+            //No need to do anything
+            if(in_log->getNumChunks() < 1 && out_log->getNumChunks() < 1 && queue_length > 0 ) {
+                T_DEBUG("Log too small %d %d", in_log->getNumChunks(), out_log->getNumChunks()  );
+                return;
             }
 
-            //Import the new messages collected during pruning
-            while(pruning_queue.size() > 0){
-                string mess = pruning_queue[ pruning_queue.size()-1];
-                pruning_queue.pop_back();
+            //just need the last few messages
+            in_log->seekToChunk( in_log->getNumChunks()-1 );
+            out_log->seekToChunk( out_log->getNumChunks()-1 );
 
-                this->enqueue( mess );
-            }
+            T_DEBUG("last chunk check: start");
+
+            TFileProcessor input_fileProcessor(proc,pfactory,in_log);
+            TFileProcessor output_fileProcessor(proc,pfactory,out_log);
+
+            input_fileProcessor.process(0,false);
+            output_fileProcessor.process(0,false);
+
+            T_DEBUG("last chunk check: end");
         }
 
-        T_DEBUG("Creating new log client");
 
-        //Finally, create log processor to read from
-        {
-            queue_log_reader             = shared_ptr<TFileTransport>(new TFileTransport(queue_log_file,true) );
-            shared_ptr<QueueLogReader>     qlr ( new QueueLogReader(this));
-            shared_ptr<QueueLogProcessor>  proc( new QueueLogProcessor(qlr));
-            shared_ptr<TProtocolFactory>   pfactory(new TBinaryProtocolFactory());
-            queue_log_processor          = shared_ptr<TFileProcessor>(new TFileProcessor(proc,pfactory,queue_log_reader));
-
+        T_DEBUG("queue_len %d",pc->queue_length);
+        if(queue_length == 0 && pc->queue_length > 0){
+            queue_length = pc->queue_length;
+            T_DEBUG("queue_len %d",queue_length);
         }
 
-        unlink(backup_log.c_str());
+        //FIXME: make this a config var
+        if(pc->last_read_chunk < 10){
+            T_INFO("reader low on queue, no compaction required: %d", pc->last_read_chunk);
+            return;
+        }
 
     }catch(TException e){
 
-        T_ERROR(e.what());
-
+        T_ERROR("ex %s",e.what());
+        return;
     }catch(...){
-        perror("Pruning failed big time");
+
+        perror("compaction failed big time");
     }
+
+
+    T_DEBUG("Compaction begun");
+
+    /////////////////////////////////////////////////
+    //Notify other threads that we are about to prune
+    //and start a new log
+    string backup_input_log;
+    string backup_output_log;
+
+    try{
+        Guard g(mutex);
+        is_pruning = true;
+        queue_input_log->flush();
+        queue_output_log->flush();
+        queue.clear();
+
+        //////////////////////////////
+        //backup the input old log
+        char buf[512];
+        sprintf(buf,".%d",(int)time(NULL));
+        backup_input_log  = queue_input_log_file + buf;
+
+        int rc = rename(queue_input_log_file.c_str(),backup_input_log.c_str());
+        assert(rc == 0); //FIXME: better have worked
+
+        //create new log and new reader
+        queue_input_log   =    shared_ptr<TFileTransport>(new TFileTransport(queue_input_log_file) );
+        queue_input_log->setFlushMaxUs(100);
+
+        //create log processor to read new messages from
+        queue_input_log_reader       = shared_ptr<TFileTransport>(new TFileTransport(queue_input_log_file,true) );
+        shared_ptr<QueueLogReader>     qlr ( new QueueLogReader(this));
+        shared_ptr<QueueLogProcessor>  proc( new QueueLogProcessor(qlr));
+        shared_ptr<TProtocolFactory>   pfactory(new TBinaryProtocolFactory());
+        queue_input_log_processor          = shared_ptr<TFileProcessor>(new TFileProcessor(proc,pfactory,queue_input_log_reader));
+
+        /////////////////////////////////
+        //backup the output log
+        backup_output_log = queue_output_log_file + buf;
+        rc = rename(queue_output_log_file.c_str(),backup_output_log.c_str());
+        assert(rc == 0); //FIXME: better have worked
+
+        //create new log and new reader
+        queue_output_log   =    shared_ptr<TFileTransport>(new TFileTransport(queue_output_log_file) );
+        queue_output_log->setFlushMaxUs(100);
+
+    }catch(TException e){
+
+        T_ERROR("ex2 %s",e.what());
+        return;
+    }catch(...){
+
+        perror("compaction failed big time");
+    }
+
+    T_DEBUG("Populating new log()");
+
+    //Replay old log to create a new pruned log
+
+
+    //Log file to process
+    shared_ptr<TFileTransport>           in_log_old(new TFileTransport(backup_input_log,true) );
+    shared_ptr<TFileTransport>           out_log_old(new TFileTransport(backup_output_log,true) );
+
+    //start at old reader position
+    in_log_old->seekToChunk(pc->last_read_chunk);
+
+    //Prune handler does the work
+    shared_ptr<PruneHandler>             ph      (new PruneHandler(queue_input_log, queue_output_log, mutex));
+    shared_ptr<QueueLogProcessor>        proc    (new QueueLogProcessor(ph));
+    shared_ptr<TProtocolFactory>         pfactory(new TBinaryProtocolFactory());
+
+    TFileProcessor output_fileProcessor(proc,pfactory,out_log_old);
+    TFileProcessor input_fileProcessor(proc,pfactory,in_log_old);
+
+    output_fileProcessor.process(0,false);
+    input_fileProcessor.process(0,false);
+
+    //Log file should be pruned. now lets populate our meta info
+    {
+        Guard g(mutex);
+        is_pruning = false;
+        T_DEBUG("Kept Unread Messages()");
+        this->queue_length = ph->queue_length;
+    }
+
+    unlink(backup_input_log.c_str());
+    unlink(backup_output_log.c_str());
 
     T_DEBUG("Exiting pruneLogFile()");
 }
 
-void Queue::enqueue(const QueueMessage &m)
+void Queue::push_back(const thruqueue::QueueInputMessage &m)
 {
-
-    //This is called via log handler
-    //FIXME: should be private with friend
     queue.push_back(m);
 }
 
-void Queue::enqueue(const string &mess, bool priority)
+void Queue::sendMessage(const string &mess)
 {
     if(mess.empty())
         return;
 
     Guard g(mutex);
 
-    if(priority){
-        priority_queue.push_back(mess);
-        queue_length++;
-        return;
-    }
-
-    if(is_pruning){
-        pruning_queue.push_front(mess);
-        queue_length++;
-        return;
-    }
-
-    QueueMessage m;
+    QueueInputMessage m;
     m.message_id = generateUUID();
-    m.op         = ENQUEUE;
     m.message    = mess;
 
-    m.key        = generateMD5(mess);
+    //mark the chunk this message will live in our log
+    m.chunk_pos = queue_input_log->getCurChunk();
+    m.queue_length = queue_length;
 
-    if(!is_unique || (is_unique && unique_keys.find(m.key) == unique_keys.end() )){
-
-        queue_log_client->send_log(m);
-
-        string s = transport->getBufferAsString();
-        transport->resetBuffer();
-
-        //write it to log
-        queue_log->write( (uint8_t *)s.c_str(), (uint32_t) s.length() );
-
-        //T_DEBUG("Adding Message:%s",mess.c_str());
-
-        queue_length++;
-    }else{
-        T_DEBUG("Skipping non unique message:%s",mess.c_str());
-    }
+    this->sendMessage(m);
 }
 
-string Queue::dequeue()
+
+void Queue::sendMessage(const QueueInputMessage &m)
 {
-    Guard g(mutex);
 
-    if(queue_length == 0)
-        return "";
+    //This is called via log handler
+    //FIXME: should be private with friend
 
-    if(priority_queue.size() > 0){
-        string mess = priority_queue[ priority_queue.size()-1 ];
-        priority_queue.pop_back();
+    queue_log_client->send_log_send(m);
 
-        queue_length--;
+    string s = transport->getBufferAsString();
+    transport->resetBuffer();
 
-        return mess;
+    //write it to log
+    queue_input_log->write( (uint8_t *)s.c_str(), (uint32_t) s.length() );
+    queue_length++;
+}
+
+QueueMessage Queue::readMessage(const int32_t &lock_time)
+{
+    if(lock_time < 0 || lock_time > 60*60*4){
+        ThruqueueException e;
+        e.code = INVALID_LOCK;
+        e.what = "A message lock cannot be greater than 4 hours";
     }
 
-    if(is_pruning){
 
-        if(pruning_queue.size()){
-            string mess = pruning_queue[ pruning_queue.size()-1 ];
-            pruning_queue.pop_back();
-        }
+    Guard g(mutex);
 
-        return "";
+    if(queue_length == 0){
+
+        ThruqueueException e;
+        e.code = EMPTY_QUEUE;
+        e.what = "The queue is empty";
+
+        throw e;
     }
 
     if(queue.size() == 0)
         this->bufferMessagesFromLog();
 
 
+    QueueMessage result;
+
     if(queue.size() > 0){
 
-        QueueMessage m =  queue[queue.size()-1];
+        QueueInputMessage m =  queue[queue.size()-1];
         queue.pop_back();
 
-        string mess  = m.message;
+        QueueOutputMessage m_log;
+        m_log.message_id      = m.message_id;
+        m_log.lock_time       = lock_time;
+        m_log.last_read_chunk = m.chunk_pos;
 
-        m.message = "";
-        m.op      = DEQUEUE;
-
-
-        queue_log_client->send_log(m);
+        queue_log_client->send_log_read(m_log);
 
         string s = transport->getBufferAsString();
         transport->resetBuffer();
 
         //write it to log
-        queue_log->write( (uint8_t *)s.c_str(), (uint32_t) s.length() );
+        queue_output_log->write( (uint8_t *)s.c_str(), (uint32_t) s.length() );
+
+        result.message_id = m.message_id;
+        result.message    = m.message;
 
 
-        if(is_unique)
-            unique_keys.erase(m.key);
+    } else {
 
-        queue_length--;
+        T_INFO("queue length is > 0 but queue appears empty");
 
-        return mess;
+        ThruqueueException e;
+        e.code = EMPTY_QUEUE;
+        e.what = "The queue is empty";
+
+        throw e;
     }
 
-    return "";
+    queue_length--;
+
+    return result;
 }
 
-
-string Queue::peek()
+void Queue::deleteMessage(const std::string &message_id)
 {
-    Guard g(mutex);
+        QueueOutputMessage m_log;
+        m_log.message_id      = message_id;
+        m_log.timestamp       = time(NULL);
 
-    if(queue_length == 0)
-        return "";
+        queue_log_client->send_log_delete(m_log);
 
-    if(priority_queue.size() > 0)
-        return priority_queue[ priority_queue.size()-1 ];
+        string s = transport->getBufferAsString();
+        transport->resetBuffer();
 
-    if(is_pruning)
-        return pruning_queue.size() ? pruning_queue[priority_queue.size()-1] : "";
-
-
-    if(queue.size() == 0)
-        this->bufferMessagesFromLog();
-
-
-    if(queue.size() > 0){
-        QueueMessage m( queue.back() );
-
-        return m.message;
-    }
-
-    return "";
+        //write it to log
+        queue_output_log->write( (uint8_t *)s.c_str(), (uint32_t) s.length() );
 }
 
 
@@ -438,6 +555,8 @@ unsigned int Queue::length()
 void Queue::bufferMessagesFromLog()
 {
 
+    T_DEBUG("buffering new messages from log");
+
     if(queue.size() > 0)
         return;
 
@@ -448,55 +567,67 @@ void Queue::bufferMessagesFromLog()
     if( queue_length <= msg_buffer_size ){
 
         //There's enough to fill the buffer, load it all
-        queue_log_processor->process(queue_length,false);
+        queue_input_log_processor->process(queue_length,false);
 
         //Hmm, nada try flushing the log and reading again
         if(queue.size() == 0)
-            queue_log->flush();
+            queue_input_log->flush();
 
-        queue_log_processor->process(queue_length,false);
+        queue_input_log_processor->process(queue_length,false);
 
-        assert( queue.size() == queue_length );
+        T_DEBUG("%d %d",queue.size(), queue_length);
+
     } else {
 
         while(queue.size() < msg_buffer_size){
-            queue_log_processor->process(1,false);
+            queue_input_log_processor->process(1,false);
         }
     }
 
 }
 
-void Queue::flush()
+void Queue::clear()
 {
     Guard g(mutex);
 
     if(is_pruning){
         ThruqueueException e;
-        e.what = "Flush failed because queue log is being pruned, try again in a few";
+        e.what = BUSY_QUEUE;
+        e.what = "Clear failed because queue log is being pruned, try again in a few";
         throw e;
     }
 
-    QueueMessage m;
-    m.op = FLUSH;
+    queue_input_log->flush();
+    queue_input_log        =    shared_ptr<TFileTransport>();
 
-    queue_log_client->send_log(m);
+    //delete the current log
+    unlink(queue_input_log_file.c_str());
 
-    string s = transport->getBufferAsString();
-    transport->resetBuffer();
+    //create a new log file
+    queue_input_log        =    shared_ptr<TFileTransport>(new TFileTransport(queue_input_log_file) );
+    queue_input_log->setFlushMaxUs(100);
 
-    //write it to log
-    queue_log->write( (uint8_t *)s.c_str(), (uint32_t) s.length() );
+    //create new log processor
+    queue_input_log_reader             = shared_ptr<TFileTransport>(new TFileTransport(queue_input_log_file,true) );
+    shared_ptr<TProtocolFactory>   pfactory(new TBinaryProtocolFactory());
+    shared_ptr<QueueLogReader>     qlr(new QueueLogReader(this));
+    shared_ptr<QueueLogProcessor>  proc    (new QueueLogProcessor(qlr));
+    queue_input_log_processor          = shared_ptr<TFileProcessor>(new TFileProcessor(proc,pfactory,queue_input_log_reader));
 
 
-    queue_log->flush();
 
-    //Skip to end of log
-    queue_log_reader->seekToEnd();
+    //////output
+    queue_output_log->flush();
+    queue_output_log        =    shared_ptr<TFileTransport>();
+
+    //delete the current log
+    unlink(queue_output_log_file.c_str());
+
+    //create a new log file
+    queue_output_log        =    shared_ptr<TFileTransport>(new TFileTransport(queue_output_log_file) );
+    queue_output_log->setFlushMaxUs(100);
 
     //Clear eveything
     queue_length = 0;
     queue.clear();
-    priority_queue.clear();
-    pruning_queue.clear();
-    unique_keys.clear();
 }

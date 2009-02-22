@@ -32,12 +32,16 @@ using namespace apache::thrift::protocol;
 _QueueManager* _QueueManager::pInstance = 0;
 Mutex          _QueueManager::_mutex    = Mutex();
 
-
 struct null_deleter
 {
     void operator()(void const *) const {}
 };
 
+
+/**
+ * The queue manager keeps tabs on the queues and makes sure they are being cleaned
+ *
+ **/
 _QueueManager *_QueueManager::instance()
 {
     if(pInstance == 0){
@@ -49,6 +53,7 @@ _QueueManager *_QueueManager::instance()
             //Validate current state
             pInstance->startup();
 
+            //
             shared_ptr<PosixThreadFactory> threadFactory =
                 shared_ptr<PosixThreadFactory>(new PosixThreadFactory());
 
@@ -78,24 +83,29 @@ void _QueueManager::startup()
 
 void _QueueManager::run()
 {
+    map<string, shared_ptr<Queue> >::iterator it;
+
     while(true){
 
-        sleep(10);
+        for(it=queue_cache.begin(); it!=queue_cache.end(); ++it){
+            it->second->pruneLogFile();
+        }
 
+        sleep(10);
     }
 }
 
 
-void  _QueueManager::createQueue ( const std::string &id, bool unique )
+void  _QueueManager::createQueue ( const std::string &id)
 {
     Guard g(mutex);
 
     if( queue_cache.count(id) == 0 )
-        queue_cache[id] = shared_ptr<Queue>(new Queue(id,unique));
+        queue_cache[id] = shared_ptr<Queue>(new Queue(id));
 
 }
 
-void  _QueueManager::destroyQueue( const std::string &id )
+void  _QueueManager::deleteQueue( const std::string &id )
 {
     Guard g(mutex);
 
