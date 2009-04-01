@@ -139,13 +139,13 @@ void CLuceneBackend::put(const thrudex::Document &d)
             switch(d.fields[j].type){
                 case thrudex::KEYWORD:
                     T_DEBUG("Keyword");
-                    f = lucene::document::Field::Keyword(key.c_str(),value.c_str());  break;
+		    f = new lucene::document::Field(key.c_str(),value.c_str(),lucene::document::Field::STORE_YES|lucene::document::Field::INDEX_UNTOKENIZED); break;
                 case thrudex::TEXT:
                     T_DEBUG("Text");
-                    f = lucene::document::Field::Text(key.c_str(),value.c_str());     break;
+		    f = new lucene::document::Field(key.c_str(),value.c_str(),lucene::document::Field::STORE_YES|lucene::document::Field::INDEX_TOKENIZED); break;
                 default:
                     T_DEBUG("UnStored");
-                    f = lucene::document::Field::UnStored(key.c_str(),value.c_str()); break;
+		    f = new lucene::document::Field(key.c_str(),value.c_str(),lucene::document::Field::STORE_NO|lucene::document::Field::INDEX_TOKENIZED); break;
             };
 
             if(d.fields[j].weight> 0){
