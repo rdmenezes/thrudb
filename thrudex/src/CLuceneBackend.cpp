@@ -118,12 +118,12 @@ void CLuceneBackend::put(const thrudex::Document &d)
         lucene::document::Field *f;
 
         //add the document key
-        f = lucene::document::Field::Keyword( DOC_KEY, doc_key.c_str() );
+	f = new lucene::document::Field(DOC_KEY, doc_key.c_str(), lucene::document::Field::STORE_YES | lucene::document::Field::INDEX_UNTOKENIZED);
         doc->add(*f);
 
         //check for payload
         if( !d.payload.empty() ){
-          f = lucene::document::Field::UnIndexed( DOC_PAYLOAD, build_wstring(d.payload).c_str() );
+	  f = new lucene::document::Field(DOC_PAYLOAD, build_wstring(d.payload).c_str(), lucene::document::Field::STORE_YES | lucene::document::Field::INDEX_NO);
           doc->add(*f);
         }
 
@@ -159,7 +159,7 @@ void CLuceneBackend::put(const thrudex::Document &d)
             if(d.fields[j].sortable){
                 key += L"_sort";
 
-                f = lucene::document::Field::Keyword(key.c_str(),value.c_str());
+		f = new lucene::document::Field(key.c_str(),value.c_str(),lucene::document::Field::STORE_YES|lucene::document::Field::INDEX_UNTOKENIZED);
 
                 doc->add(*f);
             }
