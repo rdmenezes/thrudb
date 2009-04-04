@@ -43,6 +43,9 @@
 #include <ctype.h>
 #endif
 
+#include <cstring>
+#include <algorithm>
+
 #if !defined(HAVE_OPENSSL_MD5_H)
 #error S3 support requires MD5 support
 #endif

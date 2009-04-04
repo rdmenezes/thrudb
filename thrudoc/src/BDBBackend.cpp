@@ -16,6 +16,7 @@
 #include "ThruLogging.h"
 
 #include <stdexcept>
+#include <cstring>
 #include <boost/filesystem.hpp>
 
 namespace fs = boost::filesystem;
