@@ -30,13 +30,14 @@ BitSet* UpdateFilter::bits(IndexReader* reader)
     T_DEBUG("bits");
 
     //Disk updates are all that should be filtered
+    //So if this is the disk reader then return
     if(reader == this->reader.get()){
-
         return bitset.get();
     } else {
 
         T_DEBUG("creating in mem filter");
         //this is a in memory index no filter
+        //FIXME: Cache this??
         BitSet *tmp_bs = new BitSet(reader->maxDoc());
         for(int i=0; i<reader->maxDoc(); i++)
             tmp_bs->set(i,true);

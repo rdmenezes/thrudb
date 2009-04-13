@@ -44,7 +44,7 @@ struct reader_deleter
         T_DEBUG("called reader cleanup");
 
         r->close();
-        delete r;
+        //delete r;
     }
 };
 
@@ -73,9 +73,6 @@ CLuceneIndex::CLuceneIndex(const string &index_root, const string &index_name, c
             if ( IndexReader::isLocked(idx_path.c_str()) )
                 IndexReader::unlock(idx_path.c_str());
 
-            //optimize on startup
-            this->optimize();
-
             new_index = false;
 
         } else {
@@ -89,7 +86,14 @@ CLuceneIndex::CLuceneIndex(const string &index_root, const string &index_name, c
 
         //build up bloom filter
         disk_bloom    = shared_ptr<bloom_filter>(new bloom_filter(filter_space,1.0/(1.0 * filter_space), random_seed));
-        disk_reader   = shared_ptr<IndexReader>(IndexReader::open(idx_path.c_str()), reader_deleter() );
+        disk_directory= shared_ptr<FSDirectory>(FSDirectory::getDirectory(idx_path.c_str(),false));
+        this->disk_directory->__cl_addref(); //trick clucene's lame ref counters
+
+        //optimize on startup
+        this->optimize();
+
+
+        disk_reader   = shared_ptr<IndexReader>(IndexReader::open( disk_directory.get(), false), reader_deleter() );
         disk_filter   = shared_ptr<UpdateFilter>(new UpdateFilter(disk_reader));
 
         if(!new_index){
@@ -123,7 +127,7 @@ CLuceneIndex::CLuceneIndex(const string &index_root, const string &index_name, c
         ram_prev_directory->__cl_addref(); //trick clucene's lame ref counters
 
         ram_bloom     = shared_ptr<bloom_filter> (new bloom_filter(filter_space,1.0/(1.0 * filter_space), random_seed));
-        ram_searcher  = shared_ptr<IndexSearcher>(new IndexSearcher(ram_directory.get()));
+
 
         disk_searcher = shared_ptr<IndexSearcher>(new IndexSearcher(disk_reader.get()));
         last_refresh  = -1;
@@ -166,41 +170,24 @@ CLuceneIndex::~CLuceneIndex()
     sync();
 }
 
-shared_ptr<MultiSearcher> CLuceneIndex::getSearcher()
+/**
+ *Returns a thread safe multi-searcher. made up of disk index and most recent incarnation ram directory.
+ *
+ **/
+shared_ptr<SharedMultiSearcher> CLuceneIndex::getSearcher()
 {
 
-    //syncronized in the caller
-    if(last_refresh < last_modified || last_refresh < last_synched){
+    //syncronized in the caller: search()
+    //If we've recently updated the index or synched create a new multi-searcher
+    //if( last_refresh <= last_modified || last_refresh <= last_synched)
+    {
 
         modifier->flush();
 
-        ram_searcher.reset();
-
-        //make a copy of the ram dir since its not thread safe
-        ram_readonly_directory.reset( new CLuceneRAMDirectory( ram_directory.get() ), null_deleter() );
-        ram_readonly_directory->__cl_addref(); //trick clucene's lame ref counters
-
-        ram_searcher.reset(new IndexSearcher( ram_readonly_directory.get() ));
-
-        //since clucene doesn't use shared_ptr we need to get the
-        //underlying ptr
-        Searchable *searchers[4];
-        searchers[0] = ram_searcher.get();
-        searchers[1] = disk_searcher.get();
-
-        if(syncing){
-            //make a copy of the ram dir since its not thread safe
-          ram_readonly_prev_directory = shared_ptr<CLuceneRAMDirectory>(new CLuceneRAMDirectory( ram_prev_directory.get() ), null_deleter() );
-          ram_readonly_prev_directory->__cl_addref(); //trick clucene's lame ref counters
-
-            ram_prev_searcher.reset(new IndexSearcher( ram_readonly_prev_directory.get() ));
-            searchers[2] = ram_prev_searcher.get();
-            searchers[3] = NULL;
-        }else{
-            searchers[2] = NULL;
-        }
-
-        searcher.reset( new MultiSearcher( searchers ) );
+        if(syncing)
+            searcher = shared_ptr<SharedMultiSearcher>(new SharedMultiSearcher(disk_directory,disk_reader,disk_searcher, ram_directory,  ram_prev_directory));
+        else
+            searcher = shared_ptr<SharedMultiSearcher>(new SharedMultiSearcher(disk_directory,disk_reader,disk_searcher, ram_directory));
 
         last_refresh = Util::currentTime();
 
@@ -313,34 +300,19 @@ void CLuceneIndex::search(const thrudex::SearchQuery &q, thrudex::SearchResponse
         throw ex;
     }
 
-    shared_ptr<CLuceneRAMDirectory> l_ram_readonly_directory;
-    shared_ptr<CLuceneRAMDirectory> l_ram_directory;
-    shared_ptr<CLuceneRAMDirectory> l_ram_readonly_prev_directory;
-    shared_ptr<CLuceneRAMDirectory> l_ram_prev_directory;
-    shared_ptr<IndexSearcher>       l_ram_searcher;
-    shared_ptr<IndexSearcher>       l_ram_prev_searcher;
+
     shared_ptr<IndexSearcher>       l_disk_searcher;
     shared_ptr<UpdateFilter>        l_disk_filter;
     shared_ptr<IndexReader>         l_disk_reader;
-    shared_ptr<MultiSearcher>       l_searcher;
-    //RWGuard g(mutex);
+    shared_ptr<SharedMultiSearcher>       l_searcher;
+
     {
         Guard g(mutex);
 
         l_searcher    = this->getSearcher();
 
         //making sure references to underlying objects stay above 0
-        //for the duration of this function
-        l_ram_readonly_directory      = ram_readonly_directory;
-        l_ram_directory               = ram_directory;
-        l_ram_readonly_prev_directory = ram_readonly_prev_directory;
-        l_ram_prev_directory          = ram_prev_directory;
-        l_ram_searcher                = ram_searcher;
-        l_ram_prev_searcher           = ram_prev_searcher;
-        l_disk_searcher               = disk_searcher;
-
         l_disk_filter = disk_filter;
-        l_disk_reader = disk_reader;
     }
 
     Query *query;
@@ -351,7 +323,12 @@ void CLuceneIndex::search(const thrudex::SearchQuery &q, thrudex::SearchResponse
 
         wstring wquery = build_wstring(q.query);
 
-        query = QueryParser::parse( wquery.c_str(),DOC_KEY,analyzer.get());
+        //Query parser isn't thread safe
+        //TODO: cache this?
+        {
+            Guard g(mutex);
+            query = QueryParser::parse( wquery.c_str(),DOC_KEY,analyzer.get());
+        }
 
         if( query == NULL ){
             ThrudexException ex;
@@ -508,7 +485,6 @@ void CLuceneIndex::search(const thrudex::SearchQuery &q, thrudex::SearchResponse
     _CLDELETE(h);
     _CLDELETE(lsort);
     _CLDELETE(query);
-
 }
 
 void CLuceneIndex::run()
@@ -554,6 +530,7 @@ void CLuceneIndex::sync(bool force)
 
         //Flush old writer
         modifier->flush();
+        last_modified = Util::currentTime();
 
         //Grab old handles
         l_ram_bloom    = ram_bloom;
@@ -561,18 +538,18 @@ void CLuceneIndex::sync(bool force)
         l_disk_deletes = disk_deletes;
         l_disk_bloom   = disk_bloom;
 
-        l_ram_ro_dir.reset( new CLuceneRAMDirectory( l_ram_directory.get() ) );
+        l_ram_ro_dir = shared_ptr<CLuceneRAMDirectory>( new CLuceneRAMDirectory( l_ram_directory.get() ) );
         l_ram_ro_dir->__cl_addref(); //trick clucene's lame ref counters
 
         //create new handles
-        ram_directory.reset(new CLuceneRAMDirectory());
+        ram_directory = shared_ptr<CLuceneRAMDirectory>(new CLuceneRAMDirectory());
         ram_directory->__cl_addref(); //trick clucene's lame ref counters
 
         ram_bloom.reset(new bloom_filter(filter_space,1.0/(1.0 * filter_space), random_seed));
         modifier.reset(new IndexModifier(ram_directory.get(),analyzer.get(),true));
 
         ram_prev_prev_directory = ram_prev_directory;
-        ram_prev_directory      = l_ram_directory;
+        ram_prev_directory      = ram_directory;
 
         disk_deletes.reset(new set<string>());
     }
@@ -581,6 +558,7 @@ void CLuceneIndex::sync(bool force)
 
     {
         Guard g(mutex);
+
         //Now we start by deleting any updated docs from disk
         shared_ptr<IndexReader> tmp_disk_reader(IndexReader::open(idx_path.c_str()));
 
@@ -607,8 +585,8 @@ void CLuceneIndex::sync(bool force)
 
     {
         //Now merge in the ram
-        shared_ptr<IndexWriter> disk_writer(new IndexWriter(idx_path.c_str(),analyzer.get(),false,false));
-        disk_writer->setUseCompoundFile(true);
+        shared_ptr<IndexWriter> disk_writer(new IndexWriter(idx_path.c_str(),analyzer.get(),false,true));
+        //disk_writer->setUseCompoundFile(true);
 
         Directory *dirs[2];
 
@@ -626,12 +604,19 @@ void CLuceneIndex::sync(bool force)
     }
 
     //Search new index (big perf hit so get it over now)
-    shared_ptr<IndexReader>   l_disk_reader( IndexReader::open(idx_path.c_str()), reader_deleter() );
+    shared_ptr<FSDirectory>   l_disk_directory= shared_ptr<FSDirectory>(FSDirectory::getDirectory(idx_path.c_str(),false));
+    l_disk_directory->__cl_addref(); //trick clucene's lame ref counters
+    shared_ptr<IndexReader>   l_disk_reader( IndexReader::open( l_disk_directory.get(), false), reader_deleter() );
     shared_ptr<IndexSearcher> l_disk_searcher( new IndexSearcher(l_disk_reader.get()) );
 
     wstring q = wstring(DOC_KEY)+wstring(L":1234");
 
-    Query *query = QueryParser::parse( q.c_str(),DOC_KEY,analyzer.get());
+    Query *query;
+    {
+        Guard g(mutex);
+        query = QueryParser::parse( q.c_str(),DOC_KEY,analyzer.get());
+    }
+
     Hits  *h     = l_disk_searcher->search(query);
     _CLDELETE(h);
     _CLDELETE(query);
@@ -644,8 +629,9 @@ void CLuceneIndex::sync(bool force)
 
         //the order of these things really matters
         disk_searcher = l_disk_searcher;
-        disk_filter.reset( new UpdateFilter(l_disk_reader) );
         disk_reader   = l_disk_reader;
+        disk_filter   = shared_ptr<UpdateFilter>( new UpdateFilter(disk_reader) );
+        disk_directory= l_disk_directory;
 
 
         //Add any new deletes to the filter
@@ -674,8 +660,8 @@ void CLuceneIndex::optimize()
     T_DEBUG("Start Optimizing");
 
     string idx_path = index_root + "/" + index_name;
-    shared_ptr<IndexWriter> disk_writer(new IndexWriter(idx_path.c_str(),analyzer.get(),false,false));
-    disk_writer->setUseCompoundFile(true);
+    shared_ptr<IndexWriter> disk_writer(new IndexWriter(idx_path.c_str(),analyzer.get(),false,true));
+    //disk_writer->setUseCompoundFile(true);
 
     disk_writer->optimize();
 

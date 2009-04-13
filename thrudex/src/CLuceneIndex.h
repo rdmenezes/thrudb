@@ -20,6 +20,7 @@
 
 #include "Thrudex.h"
 #include "CLuceneRAMDirectory.h"
+#include "SharedMultiSearcher.h"
 
 class bloom_filter;
 class UpdateFilter;
@@ -61,7 +62,7 @@ class CLuceneIndex : public apache::thrift::concurrency::Runnable
  private:
     void sync(bool force = false);
 
-    boost::shared_ptr<lucene::search::MultiSearcher>         getSearcher();
+    boost::shared_ptr<SharedMultiSearcher>         getSearcher();
     boost::shared_ptr<apache::thrift::concurrency::Thread> monitor_thread;
 
     apache::thrift::concurrency::Mutex             mutex;
@@ -75,12 +76,13 @@ class CLuceneIndex : public apache::thrift::concurrency::Runnable
     boost::shared_ptr<lucene::index::IndexModifier>  modifier;
     volatile int64_t                                 last_modified;
 
-    boost::shared_ptr<lucene::search::MultiSearcher> searcher;
+    boost::shared_ptr<SharedMultiSearcher>           searcher;
     int64_t                                          last_refresh;
 
     int64_t                                          last_synched;
     volatile bool                                    syncing;
 
+    boost::shared_ptr<lucene::store::FSDirectory>    disk_directory;
     boost::shared_ptr<lucene::index::IndexReader>    disk_reader;
     boost::shared_ptr<UpdateFilter>                  disk_filter;
     boost::shared_ptr<lucene::search::IndexSearcher> disk_searcher;
@@ -89,12 +91,10 @@ class CLuceneIndex : public apache::thrift::concurrency::Runnable
 
     boost::shared_ptr<lucene::store::CLuceneRAMDirectory>  ram_directory;
     boost::shared_ptr<lucene::store::CLuceneRAMDirectory>  ram_prev_directory;
-    boost::shared_ptr<lucene::store::CLuceneRAMDirectory>  ram_readonly_prev_directory;
-    boost::shared_ptr<lucene::store::CLuceneRAMDirectory>  ram_prev_prev_directory;
-    boost::shared_ptr<lucene::store::CLuceneRAMDirectory>  ram_readonly_directory;
 
-    boost::shared_ptr<lucene::search::IndexSearcher> ram_searcher;
-    boost::shared_ptr<lucene::search::IndexSearcher> ram_prev_searcher;
+    boost::shared_ptr<lucene::store::CLuceneRAMDirectory>  ram_prev_prev_directory;
+
+
 
     boost::shared_ptr<bloom_filter>                  ram_bloom;
 
