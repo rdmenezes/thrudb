@@ -89,7 +89,7 @@ class ClientThread: public Runnable {
 
             _done = true;
 
-            //cerr<<"client "<<_threadCount<<": "<<_loopType<<endl;
+            cerr<<"client "<<_threadCount<<": "<<_loopType<<endl;
 
             {Synchronized s(_monitor);
 
@@ -157,9 +157,12 @@ class ClientThread: public Runnable {
 
                 _client->put(doc);
 
+
                 SearchResponse r;
                 _client->search(r,q);
             }
+
+
         }
 
 

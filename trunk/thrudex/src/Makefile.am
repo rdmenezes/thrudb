@@ -20,6 +20,7 @@ include_thrudex_HEADERS = \
 		  CLuceneRAMDirectory.h                 \
 		  CLuceneIndex.h			\
 		  StatsBackend.h 			\
+		  SharedMultiSearcher.h			\
 		  UpdateFilter.h
 
 libthrudex_la_SOURCES = \
@@ -34,6 +35,7 @@ libthrudex_la_SOURCES = \
 		  CLuceneRAMDirectory.cpp               \
 		  CLuceneIndex.cpp			\
 		  StatsBackend.cpp			\
+		  SharedMultiSearcher.cpp		\
 		  UpdateFilter.cpp
 
 libthrudex_la_CPPFLAGS=-Wall -Igen-cpp $(THRIFTNB_CFLAGS) -I../../thrucommon/src -I../../thrucommon/src/gen-cpp  $(UUID_CFLAGS) $(BOOST_CPPFLAGS) $(CLUCENE_CPPFLAGS)

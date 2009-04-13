@@ -26,7 +26,6 @@ class UpdateFilter : public lucene::search::Filter
 
     TCHAR* toString();
 
-
  private:
     boost::shared_ptr<lucene::util::BitSet>       bitset;
     boost::shared_ptr<lucene::index::IndexReader> reader;
