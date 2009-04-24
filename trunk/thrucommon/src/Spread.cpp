@@ -9,6 +9,7 @@
 #include "ThruLogging.h"
 #include "Spread.h"
 #include <stdlib.h>
+#include <string.h>
 
 using namespace std;
 
