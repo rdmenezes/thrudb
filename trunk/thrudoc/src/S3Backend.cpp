@@ -100,8 +100,8 @@ void S3Backend::put (const string & bucket, const string & key,
 {
     struct s3headers meta[2] = {{0,0},{0,0}};
 
-    int r = object_put (this->bucket_prefix + bucket, key, value.c_str(),
-                        value.length(), meta);
+    int r = object_put (this->bucket_prefix + bucket, key, value.data(),
+                        value.size(), meta);
 
     if (r == -1)
     {

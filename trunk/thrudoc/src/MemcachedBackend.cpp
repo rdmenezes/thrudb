@@ -143,7 +143,7 @@ void MemcachedBackend::cache_put (const string & cache_key,
     uint16_t opt_flags= 0;
     time_t opt_expires= 0;
     rc = memcached_set (cache, (char*)cache_key.c_str (), cache_key.length (),
-                        (char*)value.c_str (), value.length (),
+                        (char*)value.data (), value.size (),
                         opt_expires, opt_flags);
     if (rc != MEMCACHED_SUCCESS)
     {

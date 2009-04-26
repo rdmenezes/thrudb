@@ -147,8 +147,8 @@ void BDBBackend::put (const string & bucket, const string & key,
     db_key.set_size (key.length ());
 
     Dbt db_value;
-    db_value.set_data ((char *)value.c_str ());
-    db_value.set_size (value.length ());
+    db_value.set_data ((char *)value.data ());
+    db_value.set_size (value.size ());
 
     try
     {

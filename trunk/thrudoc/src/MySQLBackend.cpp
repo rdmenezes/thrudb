@@ -264,7 +264,7 @@ void MySQLBackend::put (const string & bucket, const string & key, const string 
 
     StringStringParams * kvp = (StringStringParams*)put_statement->get_bind_params ();
     kvp->set_str1 (key.c_str ());
-    kvp->set_str2 (value.c_str ());
+    kvp->set_str2 (value.data ());
 
     put_statement->execute ();
 }
