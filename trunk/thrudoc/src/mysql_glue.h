@@ -182,7 +182,7 @@ namespace mysql {
                 return this->str1;
             }
 
-            void set_str2 (const char * str2)
+            void set_str2 (const char * str2, unsigned long len)
             {
                 if (str2 == NULL)
                 {
@@ -192,7 +192,7 @@ namespace mysql {
                 {
                     this->str2_is_null = 0;
                     strncpy (this->str2, str2, sizeof (this->str2));
-                    this->str2_length = strlen (str2);
+                    this->str2_length = len > sizeof(this->str2) ? sizeof(this->str2) : len;
                 }
             }
 

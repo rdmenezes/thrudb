@@ -264,7 +264,7 @@ void MySQLBackend::put (const string & bucket, const string & key, const string 
 
     StringStringParams * kvp = (StringStringParams*)put_statement->get_bind_params ();
     kvp->set_str1 (key.c_str ());
-    kvp->set_str2 (value.data ());
+    kvp->set_str2 (value.data (), value.size());
 
     put_statement->execute ();
 }
@@ -450,7 +450,7 @@ FindReturn MySQLBackend::find_next_and_checkout (const string & bucket,
     StringStringParams * fpp =
         (StringStringParams*)next_statement->get_bind_params ();
     fpp->set_str1 (bucket.c_str ());
-    fpp->set_str2 (current_datatable.c_str ());
+    fpp->set_str2 (current_datatable.c_str (), current_datatable.length());
 
     next_statement->execute ();
 

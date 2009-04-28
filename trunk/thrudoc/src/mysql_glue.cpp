@@ -59,7 +59,7 @@ void StringIntParams::init (const char * str, unsigned int i)
 void StringStringParams::init (const char * str1, const char * str2)
 {
     this->set_str1 (str1);
-    this->set_str2 (str2);
+    this->set_str2 (str2, strlen(str2));
 
     this->params = new MYSQL_BIND[2];
     memset (this->params, 0, sizeof (MYSQL_BIND) * 2);
