@@ -1,6 +1,9 @@
 #summary Detailed install guide for ubuntu/debian distributions
 #labels Featured
 
+=== NOTE: We've begin an alternate implementation in java on github: http://github.com/tjake/thrudb/tree/master ===
+
+
 *1. Initial Setup*
 
 Most of the dependencies are available with apt-get, but some we’ll have to build from source. The first thing we need for thrudb is thrift, which itself has  a few dependencies.
